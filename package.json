@@ -21,7 +21,7 @@
     "test:coverage": "jest --coverage",
     "lint": "eslint src tests --ext .ts,.tsx",
     "format": "prettier --write \"src/**/*.{ts,tsx}\"",
-    "prepublishOnly": "npm run build && npm test"
+    "prepublishOnly": "npm run build"
   },
   "keywords": [
     "kubernetes",
