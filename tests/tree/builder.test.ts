@@ -4,6 +4,7 @@ import type { RawClusterData } from '../../src/k8s/types.js';
 // Helper to create partial K8s objects with type assertions
 const asV1Namespace = (obj: unknown) => obj as import('@kubernetes/client-node').V1Namespace;
 const asV1Deployment = (obj: unknown) => obj as import('@kubernetes/client-node').V1Deployment;
+const asV1ReplicaSet = (obj: unknown) => obj as import('@kubernetes/client-node').V1ReplicaSet;
 const asV1StatefulSet = (obj: unknown) => obj as import('@kubernetes/client-node').V1StatefulSet;
 const asV1DaemonSet = (obj: unknown) => obj as import('@kubernetes/client-node').V1DaemonSet;
 const asV1Job = (obj: unknown) => obj as import('@kubernetes/client-node').V1Job;
@@ -22,6 +23,7 @@ describe('buildTree', () => {
         }),
       ],
       deployments: [],
+      replicaSets: [],
       statefulSets: [],
       daemonSets: [],
       jobs: [],
@@ -65,6 +67,19 @@ describe('buildTree', () => {
           status: { readyReplicas: 2 },
         }),
       ],
+      replicaSets: [
+        asV1ReplicaSet({
+          metadata: {
+            name: 'api-server-7d9f',
+            namespace: 'default',
+            ownerReferences: [
+              { apiVersion: 'apps/v1', kind: 'Deployment', name: 'api-server', uid: '456' },
+            ],
+          },
+          spec: { replicas: 2 },
+          status: { readyReplicas: 2 },
+        }),
+      ],
       statefulSets: [],
       daemonSets: [],
       jobs: [],
@@ -99,8 +114,12 @@ describe('buildTree', () => {
     expect(tree.namespaces[0].workloads).toHaveLength(1);
     expect(tree.namespaces[0].workloads[0].name).toBe('api-server');
     expect(tree.namespaces[0].workloads[0].kind).toBe('Deployment');
-    expect(tree.namespaces[0].workloads[0].pods).toHaveLength(1);
-    expect(tree.namespaces[0].workloads[0].pods[0].name).toBe('api-server-7d9f-xk2p');
+    expect(tree.namespaces[0].workloads[0].replicaSets || []).toHaveLength(1);
+    expect(tree.namespaces[0].workloads[0].replicaSets?.[0].name).toBe('api-server-7d9f');
+    expect(tree.namespaces[0].workloads[0].replicaSets?.[0].pods || []).toHaveLength(1);
+    expect(tree.namespaces[0].workloads[0].replicaSets?.[0].pods?.[0].name).toBe(
+      'api-server-7d9f-xk2p'
+    );
   });
 
   it('should handle StatefulSet pods correctly', () => {
@@ -112,6 +131,7 @@ describe('buildTree', () => {
         }),
       ],
       deployments: [],
+      replicaSets: [],
       statefulSets: [
         asV1StatefulSet({
           metadata: { name: 'postgres', namespace: 'default' },
@@ -170,6 +190,7 @@ describe('buildTree', () => {
         }),
       ],
       deployments: [],
+      replicaSets: [],
       statefulSets: [],
       daemonSets: [
         asV1DaemonSet({
@@ -232,6 +253,7 @@ describe('buildTree', () => {
         }),
       ],
       deployments: [],
+      replicaSets: [],
       statefulSets: [],
       daemonSets: [],
       jobs: [
@@ -293,6 +315,7 @@ describe('buildTree', () => {
         }),
       ],
       deployments: [],
+      replicaSets: [],
       statefulSets: [],
       daemonSets: [],
       jobs: [],
@@ -356,6 +379,7 @@ describe('buildTree', () => {
         }),
       ],
       deployments: [],
+      replicaSets: [],
       statefulSets: [],
       daemonSets: [],
       jobs: [],
@@ -394,6 +418,7 @@ describe('buildTree', () => {
         }),
       ],
       deployments: [],
+      replicaSets: [],
       statefulSets: [],
       daemonSets: [],
       jobs: [],
@@ -473,6 +498,30 @@ describe('buildTree', () => {
           status: { readyReplicas: 0 },
         }),
       ],
+      replicaSets: [
+        asV1ReplicaSet({
+          metadata: {
+            name: 'healthy-dep-abc',
+            namespace: 'healthy',
+            ownerReferences: [
+              { apiVersion: 'apps/v1', kind: 'Deployment', name: 'healthy-dep', uid: '123' },
+            ],
+          },
+          spec: { replicas: 1 },
+          status: { readyReplicas: 1 },
+        }),
+        asV1ReplicaSet({
+          metadata: {
+            name: 'unhealthy-dep-xyz',
+            namespace: 'unhealthy',
+            ownerReferences: [
+              { apiVersion: 'apps/v1', kind: 'Deployment', name: 'unhealthy-dep', uid: '456' },
+            ],
+          },
+          spec: { replicas: 1 },
+          status: { readyReplicas: 0 },
+        }),
+      ],
       statefulSets: [],
       daemonSets: [],
       jobs: [],
@@ -500,7 +549,7 @@ describe('buildTree', () => {
             name: 'unhealthy-pod',
             namespace: 'unhealthy',
             ownerReferences: [
-              { apiVersion: 'apps/v1', kind: 'ReplicaSet', name: 'unhealthy-dep-abc', uid: '123' },
+              { apiVersion: 'apps/v1', kind: 'ReplicaSet', name: 'unhealthy-dep-xyz', uid: '123' },
             ],
           },
           status: {
@@ -534,6 +583,7 @@ describe('buildTree', () => {
         }),
       ],
       deployments: [],
+      replicaSets: [],
       statefulSets: [],
       daemonSets: [],
       jobs: [],
@@ -576,6 +626,19 @@ describe('buildTree', () => {
           status: { readyReplicas: 1 },
         }),
       ],
+      replicaSets: [
+        asV1ReplicaSet({
+          metadata: {
+            name: 'api-abc',
+            namespace: 'default',
+            ownerReferences: [
+              { apiVersion: 'apps/v1', kind: 'Deployment', name: 'api', uid: '123' },
+            ],
+          },
+          spec: { replicas: 1 },
+          status: { readyReplicas: 1 },
+        }),
+      ],
       statefulSets: [],
       daemonSets: [],
       jobs: [],
@@ -608,7 +671,7 @@ describe('buildTree', () => {
 
     const tree = buildTree(rawData, 'test-context');
 
-    expect(tree.namespaces[0].workloads[0].pods[0].restarts).toBe(5);
+    expect(tree.namespaces[0].workloads[0].replicaSets?.[0].pods?.[0].restarts).toBe(5);
   });
 
   it('should extract pod reason from container state', () => {
@@ -633,6 +696,19 @@ describe('buildTree', () => {
           status: { readyReplicas: 0 },
         }),
       ],
+      replicaSets: [
+        asV1ReplicaSet({
+          metadata: {
+            name: 'api-xyz',
+            namespace: 'default',
+            ownerReferences: [
+              { apiVersion: 'apps/v1', kind: 'Deployment', name: 'api', uid: '123' },
+            ],
+          },
+          spec: { replicas: 1 },
+          status: { readyReplicas: 0 },
+        }),
+      ],
       statefulSets: [],
       daemonSets: [],
       jobs: [],
@@ -643,7 +719,7 @@ describe('buildTree', () => {
             name: 'api-pod',
             namespace: 'default',
             ownerReferences: [
-              { apiVersion: 'apps/v1', kind: 'ReplicaSet', name: 'api-abc', uid: '123' },
+              { apiVersion: 'apps/v1', kind: 'ReplicaSet', name: 'api-xyz', uid: '123' },
             ],
           },
           status: {
@@ -675,7 +751,9 @@ describe('buildTree', () => {
 
     const tree = buildTree(rawData, 'test-context');
 
-    expect(tree.namespaces[0].workloads[0].pods[0].reason).toBe('CrashLoopBackOff');
+    expect(tree.namespaces[0].workloads[0].replicaSets?.[0].pods?.[0].reason).toBe(
+      'CrashLoopBackOff'
+    );
   });
 
   it('should handle multiple namespaces', () => {
@@ -704,6 +782,19 @@ describe('buildTree', () => {
           status: { readyReplicas: 1 },
         }),
       ],
+      replicaSets: [
+        asV1ReplicaSet({
+          metadata: {
+            name: 'app-rs',
+            namespace: 'default',
+            ownerReferences: [
+              { apiVersion: 'apps/v1', kind: 'Deployment', name: 'app', uid: '123' },
+            ],
+          },
+          spec: { replicas: 1 },
+          status: { readyReplicas: 1 },
+        }),
+      ],
       statefulSets: [],
       daemonSets: [],
       jobs: [],
@@ -726,6 +817,7 @@ describe('buildTree', () => {
     const rawData: RawClusterData = {
       namespaces: [asV1Namespace({})],
       deployments: [asV1Deployment({})],
+      replicaSets: [],
       statefulSets: [],
       daemonSets: [],
       jobs: [],

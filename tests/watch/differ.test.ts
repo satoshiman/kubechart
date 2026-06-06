@@ -54,7 +54,7 @@ describe('diffTrees', () => {
             {
               ...prev.namespaces[0].workloads[0],
               pods: [
-                ...prev.namespaces[0].workloads[0].pods,
+                ...(prev.namespaces[0].workloads[0].pods || []),
                 {
                   name: 'app-ghi789',
                   phase: 'Running',
@@ -85,7 +85,7 @@ describe('diffTrees', () => {
           workloads: [
             {
               ...prev.namespaces[0].workloads[0],
-              pods: [prev.namespaces[0].workloads[0].pods[0]],
+              pods: prev.namespaces[0].workloads[0].pods?.slice(0, 1) || [],
             },
           ],
         },
@@ -109,10 +109,21 @@ describe('diffTrees', () => {
               ...prev.namespaces[0].workloads[0],
               pods: [
                 {
-                  ...prev.namespaces[0].workloads[0].pods[0],
-                  phase: 'Failed',
+                  name: 'app-abc123',
+                  phase: 'Failed' as const,
+                  nodeName: 'node-1',
+                  ip: '10.0.0.1',
+                  restarts: 0,
+                  ready: '1/1',
                 },
-                prev.namespaces[0].workloads[0].pods[1],
+                {
+                  name: 'app-def456',
+                  phase: 'Running' as const,
+                  nodeName: 'node-2',
+                  ip: '10.0.0.2',
+                  restarts: 0,
+                  ready: '1/1',
+                },
               ],
             },
           ],
