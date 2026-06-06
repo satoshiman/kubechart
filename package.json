@@ -1,0 +1,60 @@
+{
+  "name": "kubechart",
+  "version": "0.2.0",
+  "type": "module",
+  "description": "Visualize Kubernetes cluster as ASCII tree in your terminal",
+  "bin": {
+    "kubechart": "./dist/cli.js"
+  },
+  "main": "./dist/index.js",
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "dev": "nodemon --exec \"tsc && node dist/cli.js\" --ext ts,tsx --watch src --ignore dist",
+    "start": "node dist/cli.js",
+    "test": "jest",
+    "test:watch": "jest --watch",
+    "test:coverage": "jest --coverage",
+    "lint": "eslint src tests --ext .ts,.tsx",
+    "format": "prettier --write \"src/**/*.{ts,tsx}\"",
+    "prepublishOnly": "npm run build && npm test"
+  },
+  "keywords": [
+    "kubernetes",
+    "k8s",
+    "cli",
+    "ascii",
+    "devops",
+    "kubectl"
+  ],
+  "license": "MIT",
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "dependencies": {
+    "@kubernetes/client-node": "^0.21.0",
+    "commander": "^12.0.0",
+    "ink": "^4.4.1",
+    "js-yaml": "^4.1.0",
+    "react": "^18.2.0"
+  },
+  "devDependencies": {
+    "@types/jest": "^29.5.0",
+    "@types/js-yaml": "^4.0.0",
+    "@types/node": "^20.0.0",
+    "@types/react": "^18.2.0",
+    "@typescript-eslint/eslint-plugin": "^7.0.0",
+    "@typescript-eslint/parser": "^7.0.0",
+    "eslint": "^8.57.0",
+    "ink-testing-library": "^3.0.0",
+    "jest": "^29.7.0",
+    "nodemon": "^3.0.0",
+    "prettier": "^3.2.0",
+    "ts-jest": "^29.1.0",
+    "typescript": "^5.4.0"
+  }
+}
