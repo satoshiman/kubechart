@@ -26,10 +26,13 @@ export function WatchView({ opts }: { opts: WatchOptions }): React.ReactElement 
   const [lastUpdated, setLastUpdated] = useState<Date | undefined>();
   const [refreshTrigger, setRefreshTrigger] = useState(0);
   const [timeUntilRefresh, setTimeUntilRefresh] = useState(opts.interval);
+  const [currentInterval, setCurrentInterval] = useState(opts.interval);
+  const [isPaused, setIsPaused] = useState(false);
   const [currentNamespace, setCurrentNamespace] = useState<string | string[] | undefined>(
     opts.fetchOpts.namespace
   );
   const [allNamespaces, setAllNamespaces] = useState<string[]>([]);
+  const [showLegend, setShowLegend] = useState(false);
   const flashing = useFlash(diff.changed);
 
   const fetchTree = useCallback(async () => {
@@ -53,7 +56,7 @@ export function WatchView({ opts }: { opts: WatchOptions }): React.ReactElement 
 
       setTree(newTree);
       setLastUpdated(new Date());
-      setTimeUntilRefresh(opts.interval);
+      setTimeUntilRefresh(currentInterval);
       setStatus('idle');
 
       // Refetch namespace list after successful tree fetch
@@ -83,31 +86,27 @@ export function WatchView({ opts }: { opts: WatchOptions }): React.ReactElement 
       });
   }, []);
 
-  // Auto-refresh interval (continue even on error to retry automatically)
-  useEffect(() => {
-    const id = setInterval(() => {
-      fetchTreeRef.current();
-    }, opts.interval * 1000);
-    return () => clearInterval(id);
-  }, [opts.interval]);
-
-  // Countdown timer
+  // Countdown timer - triggers API when reaches 0
   useEffect(() => {
     if (status === 'fetching') {
-      setTimeUntilRefresh(opts.interval);
+      setTimeUntilRefresh(currentInterval);
       return;
     }
 
     const id = setInterval(() => {
       setTimeUntilRefresh((prev) => {
+        if (isPaused) {
+          return prev;
+        }
         if (prev <= 1) {
-          return opts.interval;
+          fetchTreeRef.current();
+          return currentInterval;
         }
         return prev - 1;
       });
     }, 1000);
     return () => clearInterval(id);
-  }, [status, opts.interval]);
+  }, [status, currentInterval, isPaused]);
 
   // Manual refresh trigger
   useEffect(() => {
@@ -123,6 +122,26 @@ export function WatchView({ opts }: { opts: WatchOptions }): React.ReactElement 
 
     if (input === 'r') {
       setRefreshTrigger((prev) => prev + 1);
+    }
+    if (input === 'p') {
+      setIsPaused((prev) => !prev);
+    }
+    if (input === 'h') {
+      setShowLegend((prev) => !prev);
+    }
+    if (input === '+' || input === '=') {
+      setCurrentInterval((prev) => {
+        const newInterval = Math.min(prev + 1, 60);
+        setTimeUntilRefresh(newInterval);
+        return newInterval;
+      });
+    }
+    if (input === '-' || input === '_') {
+      setCurrentInterval((prev) => {
+        const newInterval = Math.max(prev - 1, 1);
+        setTimeUntilRefresh(newInterval);
+        return newInterval;
+      });
     }
     if (input === 'q' || (key.ctrl && input === 'c')) {
       process.exit(0);
@@ -167,10 +186,12 @@ export function WatchView({ opts }: { opts: WatchOptions }): React.ReactElement 
           <StatusBar
             status="idle"
             diff={diff}
-            interval={opts.interval}
+            interval={currentInterval}
             lastUpdated={lastUpdated}
             timeUntilRefresh={timeUntilRefresh}
             tree={tree || undefined}
+            showLegend={showLegend}
+            isPaused={isPaused}
           />
         </Box>
       );
@@ -199,10 +220,12 @@ export function WatchView({ opts }: { opts: WatchOptions }): React.ReactElement 
         <StatusBar
           status="idle"
           diff={diff}
-          interval={opts.interval}
+          interval={currentInterval}
           lastUpdated={lastUpdated}
           timeUntilRefresh={timeUntilRefresh}
           tree={tree}
+          showLegend={showLegend}
+          isPaused={isPaused}
         />
       </Box>
     );
@@ -219,10 +242,12 @@ export function WatchView({ opts }: { opts: WatchOptions }): React.ReactElement 
       <StatusBar
         status={status}
         diff={diff}
-        interval={opts.interval}
+        interval={currentInterval}
         lastUpdated={lastUpdated}
         timeUntilRefresh={timeUntilRefresh}
         tree={tree}
+        showLegend={showLegend}
+        isPaused={isPaused}
       />
     </Box>
   );

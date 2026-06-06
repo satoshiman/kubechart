@@ -93,19 +93,32 @@ interface NamespaceRowProps {
         restarts: number;
         reason?: string;
         ready: string;
+        age: string;
       }>;
+      lastScheduleTime?: string;
+      nextScheduleTime?: string;
+      duration?: string;
     }>;
     services: Array<{
       name: string;
       type: string;
       clusterIP: string;
       ports: string[];
+      nodePort?: number;
+      externalIp?: string;
+      externalIpPending?: boolean;
     }>;
     ingresses: Array<{
       name: string;
       host: string;
       paths: string[];
       tls: boolean;
+      backend?: string;
+      tlsSecretMissing?: boolean;
+    }>;
+    configMaps: Array<{
+      name: string;
+      keys: number;
     }>;
   };
   isLast: boolean;
@@ -119,9 +132,13 @@ function NamespaceRow({ namespace, isLast, flashing }: NamespaceRowProps): React
   const hasResources =
     namespace.workloads.length > 0 ||
     namespace.services.length > 0 ||
-    namespace.ingresses.length > 0;
+    namespace.ingresses.length > 0 ||
+    namespace.configMaps.length > 0;
   const totalResources =
-    namespace.workloads.length + namespace.services.length + namespace.ingresses.length;
+    namespace.workloads.length +
+    namespace.services.length +
+    namespace.ingresses.length +
+    namespace.configMaps.length;
 
   return (
     <Box flexDirection="column" marginBottom={hasResources ? 0 : 1}>
@@ -140,7 +157,8 @@ function NamespaceRow({ namespace, isLast, flashing }: NamespaceRowProps): React
           isLast={
             wlIndex === totalResources - 1 &&
             namespace.services.length === 0 &&
-            namespace.ingresses.length === 0
+            namespace.ingresses.length === 0 &&
+            namespace.configMaps.length === 0
           }
           flashing={flashing}
           namespaceName={namespace.name}
@@ -152,7 +170,11 @@ function NamespaceRow({ namespace, isLast, flashing }: NamespaceRowProps): React
           key={service.name}
           service={service}
           prefix={childPrefix}
-          isLast={svcIndex === namespace.services.length - 1 && namespace.ingresses.length === 0}
+          isLast={
+            svcIndex === namespace.services.length - 1 &&
+            namespace.ingresses.length === 0 &&
+            namespace.configMaps.length === 0
+          }
         />
       ))}
 
@@ -161,7 +183,16 @@ function NamespaceRow({ namespace, isLast, flashing }: NamespaceRowProps): React
           key={ingress.name}
           ingress={ingress}
           prefix={childPrefix}
-          isLast={ingIndex === namespace.ingresses.length - 1}
+          isLast={ingIndex === namespace.ingresses.length - 1 && namespace.configMaps.length === 0}
+        />
+      ))}
+
+      {namespace.configMaps.map((configMap, cmIndex) => (
+        <ConfigMapRow
+          key={configMap.name}
+          configMap={configMap}
+          prefix={childPrefix}
+          isLast={cmIndex === namespace.configMaps.length - 1}
         />
       ))}
 
@@ -191,6 +222,7 @@ interface WorkloadRowProps {
         restarts: number;
         reason?: string;
         ready: string;
+        age: string;
       }>;
     }>;
     pods?: Array<{
@@ -201,7 +233,11 @@ interface WorkloadRowProps {
       restarts: number;
       reason?: string;
       ready: string;
+      age: string;
     }>;
+    lastScheduleTime?: string;
+    nextScheduleTime?: string;
+    duration?: string;
   };
   prefix: string;
   isLast: boolean;
@@ -279,6 +315,19 @@ function WorkloadRow({
           {' '}
           {workload.kind} {workload.name} [{workload.ready}]
         </Text>
+        {/* Show schedule info for CronJobs on same line */}
+        {workload.kind === 'CronJob' &&
+          (workload.lastScheduleTime || workload.nextScheduleTime) && (
+            <Text color={getColor('tree')}>
+              {' '}
+              last: {workload.lastScheduleTime || 'never'}
+              {workload.nextScheduleTime && ` + next: ${workload.nextScheduleTime}`}
+            </Text>
+          )}
+        {/* Show duration for Jobs on same line */}
+        {workload.kind === 'Job' && workload.duration && (
+          <Text color={getColor('tree')}> duration: {workload.duration}</Text>
+        )}
       </Box>
 
       {(workload.pods || []).map((pod, podIndex) => (
@@ -321,6 +370,7 @@ interface PodRowProps {
     restarts: number;
     reason?: string;
     ready: string;
+    age: string;
   };
   prefix: string;
   isLast: boolean;
@@ -349,12 +399,31 @@ function PodRow({ pod, prefix, isLast, flashing, podKey }: PodRowProps): React.R
         color={isFlashing ? 'black' : getColor('tree')}
       >
         {' '}
-        {pod.nodeName} {pod.ip} {pod.restarts} restarts
+        {pod.nodeName}{' '}
+      </Text>
+      <Text
+        backgroundColor={isFlashing ? 'white' : undefined}
+        color={isFlashing ? 'black' : getColor('ip')}
+      >
+        {pod.ip}
+      </Text>
+      <Text
+        backgroundColor={isFlashing ? 'white' : undefined}
+        color={isFlashing ? 'black' : getColor('tree')}
+      >
+        {' '}
+        {pod.restarts}↺ {pod.age}
       </Text>
       {pod.reason && (
         <Text
           backgroundColor={isFlashing ? 'white' : undefined}
-          color={isFlashing ? 'black' : getColor('error')}
+          color={
+            isFlashing
+              ? 'black'
+              : pod.reason === 'Completed'
+                ? getColor('completed')
+                : getColor('error')
+          }
         >
           {' '}
           {pod.reason}
@@ -391,6 +460,9 @@ interface ServiceRowProps {
     type: string;
     clusterIP: string;
     ports: string[];
+    nodePort?: number;
+    externalIp?: string;
+    externalIpPending?: boolean;
   };
   prefix: string;
   isLast: boolean;
@@ -404,12 +476,17 @@ function ServiceRow({ service, prefix, isLast }: ServiceRowProps): React.ReactEl
     <Box>
       <Text color={getColor('tree')}>{prefix}</Text>
       <Text color={getColor('tree')}>{svcPrefix} SVC </Text>
-      <Text color={color}>{icon}</Text>
-      <Text color={getColor('workload')}>
-        {' '}
-        {service.name} {service.type} {service.clusterIP}
-      </Text>
+      <Text color={color}>{icon} </Text>
+      <Text color={color}>{service.type} </Text>
+      <Text color={getColor('workload')}>{service.name} </Text>
+      <Text color={getColor('ip')}>{service.clusterIP}</Text>
       <Text color={getColor('tree')}> {service.ports.join(', ')}</Text>
+      {service.nodePort && <Text color={getColor('tree')}> :{service.nodePort}</Text>}
+      {service.externalIp && <Text color={getColor('tree')}> EXTERNAL-IP: </Text>}
+      {service.externalIp && <Text color={getColor('ip')}>{service.externalIp}</Text>}
+      {service.externalIpPending && (
+        <Text color={getColor('error')}> [EXTERNAL-IP: &lt;pending&gt;]</Text>
+      )}
     </Box>
   );
 }
@@ -435,6 +512,8 @@ interface IngressRowProps {
     host: string;
     paths: string[];
     tls: boolean;
+    backend?: string;
+    tlsSecretMissing?: boolean;
   };
   prefix: string;
   isLast: boolean;
@@ -453,6 +532,33 @@ function IngressRow({ ingress, prefix, isLast }: IngressRowProps): React.ReactEl
         {ingress.host} {ingress.tls ? '🔒' : ''}
       </Text>
       <Text color={getColor('tree')}> {ingress.paths.join(', ')}</Text>
+      {ingress.backend && <Text color={getColor('tree')}> → {ingress.backend}</Text>}
+      {ingress.tlsSecretMissing && <Text color={getColor('error')}> [TLS secret missing]</Text>}
+    </Box>
+  );
+}
+
+interface ConfigMapRowProps {
+  configMap: {
+    name: string;
+    keys: number;
+  };
+  prefix: string;
+  isLast: boolean;
+}
+
+function ConfigMapRow({ configMap, prefix, isLast }: ConfigMapRowProps): React.ReactElement {
+  const cmPrefix = isLast ? '└──' : '├──';
+
+  return (
+    <Box>
+      <Text color={getColor('tree')}>{prefix}</Text>
+      <Text color={getColor('tree')}>{cmPrefix} CM </Text>
+      <Text color={getColor('configMap')}>◉</Text>
+      <Text color={getColor('workload')}>
+        {' '}
+        {configMap.name} {configMap.keys} keys
+      </Text>
     </Box>
   );
 }

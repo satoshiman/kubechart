@@ -34,6 +34,8 @@ export interface RawClusterData {
   pods: import('@kubernetes/client-node').V1Pod[];
   services: import('@kubernetes/client-node').V1Service[];
   ingresses: import('@kubernetes/client-node').V1Ingress[];
+  configMaps: import('@kubernetes/client-node').V1ConfigMap[];
+  secrets: import('@kubernetes/client-node').V1Secret[];
   serverVersion?: string;
   nodeCount?: number;
 }

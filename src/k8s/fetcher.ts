@@ -39,6 +39,8 @@ export async function fetchClusterData(
     const pods: k8s.V1Pod[] = [];
     const services: k8s.V1Service[] = [];
     const ingresses: k8s.V1Ingress[] = [];
+    const configMaps: k8s.V1ConfigMap[] = [];
+    const secrets: k8s.V1Secret[] = [];
 
     for (const ns of namespaces) {
       const nsName = ns.metadata?.name;
@@ -54,6 +56,8 @@ export async function fetchClusterData(
         nsPods,
         nsServices,
         nsIngresses,
+        nsConfigMaps,
+        nsSecrets,
       ] = await Promise.all([
         fetchDeployments(client.apps, nsName),
         fetchReplicaSets(client.apps, nsName),
@@ -64,6 +68,8 @@ export async function fetchClusterData(
         fetchPods(client.core, nsName, opts.selector),
         fetchServices(client.core, nsName),
         fetchIngresses(client.networking, nsName),
+        fetchConfigMaps(client.core, nsName),
+        fetchSecrets(client.core, nsName),
       ]);
 
       deployments.push(...nsDeployments);
@@ -75,6 +81,8 @@ export async function fetchClusterData(
       pods.push(...nsPods);
       services.push(...nsServices);
       ingresses.push(...nsIngresses);
+      configMaps.push(...nsConfigMaps);
+      secrets.push(...nsSecrets);
     }
 
     return {
@@ -88,6 +96,8 @@ export async function fetchClusterData(
       pods,
       services,
       ingresses,
+      configMaps,
+      secrets,
       serverVersion,
       nodeCount,
     };
@@ -229,6 +239,24 @@ async function fetchServices(core: k8s.CoreV1Api, ns: string): Promise<k8s.V1Ser
 async function fetchIngresses(net: k8s.NetworkingV1Api, ns: string): Promise<k8s.V1Ingress[]> {
   try {
     const res = await net.listNamespacedIngress(ns);
+    return res.body.items;
+  } catch (error) {
+    return [];
+  }
+}
+
+async function fetchConfigMaps(core: k8s.CoreV1Api, ns: string): Promise<k8s.V1ConfigMap[]> {
+  try {
+    const res = await core.listNamespacedConfigMap(ns);
+    return res.body.items;
+  } catch (error) {
+    return [];
+  }
+}
+
+async function fetchSecrets(core: k8s.CoreV1Api, ns: string): Promise<k8s.V1Secret[]> {
+  try {
+    const res = await core.listNamespacedSecret(ns);
     return res.body.items;
   } catch (error) {
     return [];

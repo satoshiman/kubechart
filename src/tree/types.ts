@@ -16,6 +16,7 @@ export interface PodNode {
   restarts: number;
   reason?: string;
   ready: string;
+  age: string;
 }
 
 export interface ServiceNode {
@@ -23,6 +24,9 @@ export interface ServiceNode {
   type: 'ClusterIP' | 'NodePort' | 'LoadBalancer' | 'ExternalName';
   clusterIP: string;
   ports: string[];
+  nodePort?: number;
+  externalIp?: string;
+  externalIpPending?: boolean;
 }
 
 export interface IngressNode {
@@ -30,6 +34,13 @@ export interface IngressNode {
   host: string;
   paths: string[];
   tls: boolean;
+  backend?: string;
+  tlsSecretMissing?: boolean;
+}
+
+export interface ConfigMapNode {
+  name: string;
+  keys: number;
 }
 
 export interface ReplicaSetNode {
@@ -45,6 +56,9 @@ export interface WorkloadNode {
   image: string;
   replicaSets?: ReplicaSetNode[];
   pods?: PodNode[];
+  lastScheduleTime?: string;
+  nextScheduleTime?: string;
+  duration?: string;
 }
 
 export interface NamespaceNode {
@@ -53,6 +67,7 @@ export interface NamespaceNode {
   workloads: WorkloadNode[];
   services: ServiceNode[];
   ingresses: IngressNode[];
+  configMaps: ConfigMapNode[];
 }
 
 export interface ClusterTree {

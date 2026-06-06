@@ -54,28 +54,23 @@ kubechart/
 │   │   └── types.ts            # TreeNode, ClusterTree interfaces
 │   ├── watch/
 │   │   ├── differ.ts           # Diff two ClusterTrees for changes
-│   │   └── types.ts            # DiffResult interface
-│   ├── output/
-│   │   └── serializer.ts       # Serialize ClusterTree to JSON/YAML
-│   └── graph/
-│       ├── builder.ts          # Build traffic flow graph
-│       └── types.ts            # Graph node types
+│   │   └── flash.ts            # Flash effect hook for changed items
+│   └── output/
+│       └── serializer.ts       # Serialize ClusterTree to JSON/YAML
 ├── tests/
 │   ├── tree/
 │   │   └── builder.test.ts
 │   ├── render/
 │   │   ├── TreeView.test.tsx
 │   │   ├── colors.test.ts
-│   │   └── box.test.ts
+│   │   └── BlockView.test.tsx
 │   ├── k8s/
 │   │   ├── client.test.ts
 │   │   └── fetcher.test.ts
 │   ├── watch/
 │   │   └── differ.test.ts
-│   ├── output/
-│   │   └── serializer.test.ts
-│   └── graph/
-│       └── builder.test.ts
+│   └── output/
+│       └── serializer.test.ts
 ├── dist/                       # tsc output (gitignored)
 ├── .eslintrc.json
 ├── .prettierrc
@@ -83,8 +78,7 @@ kubechart/
 ├── tsconfig.json
 ├── package.json
 ├── README.md
-├── AGENT.md
-└── AGENT-v1.1.md
+└── AGENT.md
 ```
 
 ---
@@ -213,6 +207,131 @@ program
 ```
 
 **Default behavior**: Watch mode (auto-refresh every 5s). Use `--once` for static output.
+
+### 5.3 Watch Mode Behavior
+
+```
+┌─ Watch mode lifecycle ──────────────────────────────────┐
+│                                                          │
+│  Start                                                   │
+│    │                                                     │
+│    ▼                                                     │
+│  Check TTY (interactive terminal)                        │
+│    │                                                     │
+│    ├─ Not TTY → Error: "Watch mode requires TTY"         │
+│    │            → Suggest: "Use --once flag"             │
+│    └─ TTY → continue                                     │
+│    │                                                     │
+│    ▼                                                     │
+│  Show spinner "Fetching cluster data..."                 │
+│    │                                                     │
+│    ▼                                                     │
+│  Fetch & render full tree                               │
+│    │                                                     │
+│    ├─ Error → Show error message                        │
+│    │         → Auto-retry on next interval              │
+│    │         → Press 'r' to retry immediately             │
+│    └─ Success → continue                                 │
+│    │                                                     │
+│    ▼                                                     │
+│  Show status bar with countdown timer                    │
+│  "Last updated: 14:32:05 (no changes) | interval: 3/5s | [r]efresh [q]uit"
+│    │                                                     │
+│    ▼                                                     │
+│  Wait interval (5s default)                             │
+│    │                                                     │
+│    ├─ r pressed → fetch immediately (skip wait)         │
+│    ├─ q / Ctrl+C → cleanup → exit                       │
+│    │                                                     │
+│    ▼                                                     │
+│  Re-fetch → diff với snapshot trước                     │
+│    │                                                     │
+│    ├─ Có thay đổi → flash dòng đó 300ms rồi stable      │
+│    └─ Không đổi  → re-render im lặng                    │
+│                                                          │
+└──────────────────────────────────────────────────────────┘
+```
+
+**Keyboard Controls:**
+
+- `r` - Refresh immediately
+- `q` - Quit
+- `h` - Toggle pod status legend
+- `+` / `-` - Increase/decrease refresh interval (1-60s)
+- `p` - Pause/resume countdown timer
+
+**Error Handling in Watch Mode:**
+
+- **Namespace not found**: Auto-retry on next interval
+- **Connection errors**: Auto-retry, display error message with retry hint
+- **Non-interactive terminal**: Check `process.stdin.isTTY`, show error suggesting `--once` flag
+- **Manual retry**: Press 'r' to retry immediately regardless of interval
+
+### 5.4 Output to File
+
+```bash
+# Print JSON to stdout
+kubechart --output json
+
+# Print YAML to stdout
+kubechart --output yaml
+
+# Write to file
+kubechart --output json --out-file ./cluster-snapshot.json
+kubechart --output yaml --out-file ./cluster-snapshot.yaml
+
+# Kết hợp với filter
+kubechart -n production --output json --out-file ./prod.json
+
+# Dùng trong CI/CD pipeline
+kubechart --output json | jq '.namespaces[].workloads[] | select(.ready != .desired)'
+```
+
+**JSON Schema:**
+
+```typescript
+// Output JSON = ClusterTree interface serialize trực tiếp
+// src/output/serializer.ts
+import type { ResourceKind } from '../tree/types.js';
+
+export interface ClusterSnapshot {
+  meta: {
+    contextName: string;
+    serverVersion: string;
+    nodeCount: number;
+    fetchedAt: string; // ISO 8601
+    kubechartVersion: string;
+  };
+  namespaces: NamespaceSnapshot[];
+}
+
+export interface NamespaceSnapshot {
+  name: string;
+  status: string;
+  workloads: WorkloadSnapshot[];
+  services: ServiceSnapshot[];
+  ingresses: IngressSnapshot[];
+}
+
+export interface WorkloadSnapshot {
+  name: string;
+  kind: ResourceKind;
+  readyReplicas: number;
+  desiredReplicas: number;
+  image: string;
+  degraded: boolean;
+  pods: PodSnapshot[];
+}
+
+export interface PodSnapshot {
+  name: string;
+  phase: string;
+  nodeName: string;
+  ip: string;
+  restarts: number;
+  reason?: string;
+}
+```
 
 ---
 
@@ -448,10 +567,12 @@ mockFetch.mockResolvedValue(fixtures.sampleClusterTree);
     "@kubernetes/client-node": "^0.21.0",
     "commander": "^12.0.0",
     "ink": "^4.4.1",
+    "js-yaml": "^4.1.0",
     "react": "^18.2.0"
   },
   "devDependencies": {
     "@types/jest": "^29.5.0",
+    "@types/js-yaml": "^4.0.9",
     "@types/node": "^20.0.0",
     "@types/react": "^18.2.0",
     "@typescript-eslint/eslint-plugin": "^7.0.0",
@@ -545,13 +666,214 @@ mockFetch.mockResolvedValue(fixtures.sampleClusterTree);
 - Created MIT LICENSE file
 - Built project successfully with `npm run build`
 
-### V1.1 — Sau MVP
+### V1.1 — Watch Mode & Output to File
 
 - [x] `--watch` mode (dùng ink's re-render)
 - [x] ReplicaSet support for Deployments (Deployment → ReplicaSet → Pod hierarchy)
 - [x] Output to file (`--output json/yaml`)
-- [ ] Block view (removed - only TreeView supported)
-- [ ] Graph view (removed - only TreeView supported)
+- [x] Diff engine for detecting changes in watch mode
+- [x] Flash effect for changed items
+- [x] Status bar with countdown timer
+- [x] Keyboard controls (r, q, h, +, -, p)
+
+### V1.2 — Watch Mode Enhancements (Jun 2026)
+
+**New Features:**
+
+- [x] Toggle pod status legend with `h` key (hidden by default for cleaner UI)
+- [x] Dynamic refresh interval adjustment with `+`/`-` keys (1-60s range)
+- [x] Loading icon animation during API fetch (⠋ ⠙ ⠹ ⠸ ⠼ ⠴ ⠦ ⠧ ⠇ ⠏)
+- [x] Refresh icon `↺` when idle
+- [x] Synchronized countdown timer that triggers API calls (removed duplicate interval logic)
+- [x] Compact UI layout with `gap={0}` to eliminate extra blank lines
+- [x] Pause/resume countdown timer with `p` key (shows ⏸ icon when paused)
+- [x] Fixed CronJob job duplication - jobs owned by CronJobs are filtered out to avoid showing them twice
+- [x] Service display shows type before name (e.g., "SVC ● ClusterIP test-clusterip-svc")
+
+**Code Changes:**
+
+- `src/render/WatchView.tsx`:
+  - Added `currentInterval` state for dynamic interval adjustment
+  - Added `showLegend` state for pod status legend toggle
+  - Added keyboard handlers for `h`, `+`, `-`, `=`, `_` keys
+  - Removed duplicate auto-refresh interval logic
+  - Countdown timer now triggers API calls when reaching 0
+  - All StatusBar calls updated to use `currentInterval` instead of `opts.interval`
+
+- `src/render/StatusBar.tsx`:
+  - Added `showLegend` prop to interface (default: false)
+  - Added `isPaused` prop to interface (default: false)
+  - Conditional rendering of pod status legend based on `showLegend`
+  - Updated status icon logic: loading animation when fetching, `↺` when idle, `⏸` when paused
+  - Added `gap={0}` to eliminate extra blank lines
+  - Updated help text to include `[h]elp`, `[-/+]`, and `[p]ause` controls
+  - Simplified layout structure for cleaner UI
+
+- `src/tree/builder.ts`:
+  - Added filtering to exclude jobs owned by CronJobs to prevent duplication
+  - Jobs are only shown under their parent CronJob, not as standalone workloads
+
+- `src/render/TreeView.tsx`:
+  - Updated ServiceRow to display service type before name for better readability
+
+---
+
+## 16. Watch Mode Implementation Details
+
+### 16.1 Diff Engine (`src/watch/differ.ts`)
+
+```typescript
+import type { ClusterTree } from '../tree/types.js';
+
+export interface DiffResult {
+  added: string[]; // pod/workload names mới xuất hiện
+  removed: string[]; // pod/workload names biến mất
+  changed: string[]; // pod/workload names thay đổi status
+}
+
+export function diffTrees(prev: ClusterTree, next: ClusterTree): DiffResult;
+
+// Rules:
+// - So sánh theo namespace/workload/pod name làm key
+// - Pod phase thay đổi (Pending→Running, Running→Failed) → "changed"
+// - Pod mới → "added"
+// - Pod biến mất → "removed"
+// - Workload ready count thay đổi (3/3 → 2/3) → "changed"
+```
+
+### 16.2 Flash Effect
+
+```typescript
+// src/watch/flash.ts
+// Ink không có animation built-in → dùng useEffect + setTimeout
+import { useState, useEffect } from 'react';
+
+export function useFlash(changedKeys: string[], duration = 300) {
+  const [flashing, setFlashing] = useState<Set<string>>(new Set());
+
+  useEffect(() => {
+    if (changedKeys.length === 0) return;
+    setFlashing(new Set(changedKeys));
+    const timer = setTimeout(() => setFlashing(new Set()), duration);
+    return () => clearTimeout(timer);
+  }, [changedKeys]);
+
+  return flashing;
+}
+
+// Trong TreeView.tsx:
+// Nếu pod.name ∈ flashing → render với background highlight (inverse color)
+// Sau 300ms → render bình thường
+```
+
+### 16.3 Status Bar
+
+```
+Last updated: 14:32:05 (no changes) | interval: 3/5s ⠋ | [r]efresh [q]uit
+```
+
+- Hiển thị ở bottom, fixed, không scroll cùng tree
+- Countdown timer: `3/5s` - đếm ngược từ 5s xuống 0s
+- Khi đang fetch: hiển thị spinner animation (⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏) thay vì flash line
+- Khi idle: hiển thị refresh icon `↺`
+- Khi paused: hiển thị pause icon `⏸`
+- Dùng `ink`'s `<Static>` cho tree content, `<Box>` fixed bottom cho status bar
+
+### 16.4 Ink Component Structure
+
+```typescript
+// src/render/WatchView.tsx
+import { useState, useEffect } from 'react';
+import { Box, useInput } from 'ink';
+import { fetchClusterData } from '../k8s/fetcher.js';
+import { diffTrees } from '../watch/differ.js';
+import { useFlash } from '../watch/flash.js';
+import { TreeView } from './TreeView.js';
+import { StatusBar } from './StatusBar.js';
+import type { ClusterTree } from '../tree/types.js';
+import type { DiffResult } from '../watch/differ.js';
+
+export function WatchView({ opts }: { opts: WatchOptions }) {
+  const [tree, setTree] = useState<ClusterTree | null>(null);
+  const [diff, setDiff] = useState<DiffResult>({ added: [], removed: [], changed: [] });
+  const [status, setStatus] = useState<'fetching' | 'idle'>('fetching');
+  const flashing = useFlash(diff.changed);
+
+  // fetch loop
+  useEffect(() => {
+    const run = async () => {
+      setStatus('fetching');
+      const next = await fetchClusterData(client, opts);
+      if (tree) setDiff(diffTrees(tree, next));
+      setTree(next);
+      setStatus('idle');
+    };
+
+    run();
+    const id = setInterval(run, opts.interval * 1000);
+    return () => clearInterval(id);
+  }, []);
+
+  // keyboard
+  useInput((input) => {
+    if (input === 'r') triggerRefresh();
+    if (input === 'q') process.exit(0);
+  });
+
+  return (
+    <Box flexDirection="column">
+      <TreeView tree={tree} flashing={flashing} />
+      <StatusBar status={status} diff={diff} interval={opts.interval} />
+    </Box>
+  );
+}
+```
+
+---
+
+## 17. Output Serializer Implementation
+
+### 17.1 Serializer (`src/output/serializer.ts`)
+
+```typescript
+import type { ClusterTree } from '../tree/types.js';
+import type { ClusterSnapshot } from './serializer.js';
+
+export function toJson(tree: ClusterTree): string;
+export function toYaml(tree: ClusterTree): string;
+export async function writeToFile(content: string, path: string): Promise<void>;
+// writeToFile: dùng fs.promises.writeFile
+// Nếu path đã tồn tại → overwrite (không hỏi, vì dùng trong CI)
+// Sau khi write → in ra stderr: "Written to ./cluster-snapshot.json"
+// (stderr để không pollute stdout khi pipe)
+```
+
+### 17.2 YAML Output
+
+```typescript
+// Dùng thư viện `js-yaml` để serialize
+// KHÔNG dùng thư viện nặng, chỉ cần dump ClusterSnapshot
+// src/output/serializer.ts
+import * as yaml from 'js-yaml';
+import type { ClusterSnapshot } from './serializer.js';
+
+export function toYaml(snapshot: ClusterSnapshot): string {
+  return yaml.dump(snapshot, { indent: 2, lineWidth: 120 });
+}
+```
+
+### 17.3 New Dependencies
+
+```json
+{
+  "dependencies": {
+    "js-yaml": "^4.1.0"
+  },
+  "devDependencies": {
+    "@types/js-yaml": "^4.0.9"
+  }
+}
+```
 
 ---
 

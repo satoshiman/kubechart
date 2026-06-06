@@ -11,6 +11,8 @@ interface StatusBarProps {
   lastUpdated?: Date;
   timeUntilRefresh: number;
   tree?: ClusterTree;
+  showLegend?: boolean;
+  isPaused?: boolean;
 }
 
 export function StatusBar({
@@ -20,6 +22,8 @@ export function StatusBar({
   lastUpdated,
   timeUntilRefresh,
   tree,
+  showLegend = false,
+  isPaused = false,
 }: StatusBarProps): React.ReactElement {
   const formatTime = (date: Date) => {
     return date.toLocaleTimeString('en-US', {
@@ -44,7 +48,7 @@ export function StatusBar({
     return frames[frameIndex];
   };
 
-  const statusIcon = status === 'fetching' ? loadingIcon() : ' ';
+  const statusIcon = status === 'fetching' ? loadingIcon() : '↺';
 
   const stats = () => {
     if (!tree) return null;
@@ -65,12 +69,13 @@ export function StatusBar({
     );
     const servicesCount = tree.namespaces.reduce((sum, ns) => sum + ns.services.length, 0);
     const ingressesCount = tree.namespaces.reduce((sum, ns) => sum + ns.ingresses.length, 0);
+    const configMapsCount = tree.namespaces.reduce((sum, ns) => sum + ns.configMaps.length, 0);
 
     return (
       <Box>
         <Text color={getColor('tree')}>
           namespaces: {tree.namespaces.length} | workloads: {workloadsCount} | pods: {podsCount} |
-          services: {servicesCount} | ingresses: {ingressesCount}
+          services: {servicesCount} | ingresses: {ingressesCount} | configmaps: {configMapsCount}
         </Text>
       </Box>
     );
@@ -94,21 +99,20 @@ export function StatusBar({
   };
 
   return (
-    <Box flexDirection="column" marginTop={1}>
-      <Box marginBottom={1}>
-        <Text color={getColor('tree')}>────────────────────────────────────────</Text>
-      </Box>
+    <Box flexDirection="column" gap={0}>
+      <Text color={getColor('tree')}>────────────────────────────────────────</Text>
       {stats()}
-      <Box marginBottom={1} marginTop={1}>
-        <Text color={getColor('tree')}>────────────────────────────────────────</Text>
-      </Box>
-      {podStatusLegend()}
-      <Box marginTop={1}>
-        <Text dimColor>
-          Last updated: {lastUpdated ? formatTime(lastUpdated) : 'N/A'} ({diffSummary()}) |
-          interval: {timeUntilRefresh}/{interval}s {statusIcon} | [r]efresh [q]uit
-        </Text>
-      </Box>
+      <Text dimColor>
+        Last updated: {lastUpdated ? formatTime(lastUpdated) : 'N/A'} ({diffSummary()}) |{' '}
+        {isPaused ? '⏸' : statusIcon} {timeUntilRefresh}/{interval}s [-/+] | [r]efresh [p]ause
+        [q]uit [h]elp
+      </Text>
+      {showLegend && (
+        <>
+          <Text color={getColor('tree')}>────────────────────────────────────────</Text>
+          {podStatusLegend()}
+        </>
+      )}
     </Box>
   );
 }

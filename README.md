@@ -5,8 +5,10 @@ CLI tool to visualize Kubernetes cluster as an ASCII tree directly in your termi
 ## Features
 
 - **Watch Mode (Default)**: Auto-refresh with countdown timer, diff highlighting, and manual refresh with `r` key
+- **Pause/Resume**: Pause the countdown timer with `p` key to stop auto-refresh temporarily
 - **ASCII Tree Visualization**: Clean, readable tree structure showing namespaces, workloads, replicaSets, pods, services, and ingresses
 - **Kubernetes Hierarchy**: Displays proper Deployment → ReplicaSet → Pod structure for Deployments
+- **CronJob Integration**: Jobs owned by CronJobs are nested under their parent CronJob to avoid duplication
 - **Color-Coded Status**: Visual indicators for pod health (Running, Pending, Failed, etc.)
 - **Resource Type Symbols**: Distinct symbols for Deployments, StatefulSets, DaemonSets, Jobs, CronJobs, ReplicaSets, Services, and Ingresses
 - **Flexible Filtering**: Filter by namespace, label selector, or show only resources with errors
@@ -52,7 +54,13 @@ kubechart
 # Custom refresh interval
 kubechart --interval 10
 
-# Manual refresh with 'r' key, quit with 'q' or Ctrl+C
+# Keyboard controls:
+# - r: manual refresh
+# - p: pause/resume countdown timer
+# - q or Ctrl+C: quit
+# - h: toggle pod status legend
+# - +/=: increase refresh interval (max 60s)
+# - -/_: decrease refresh interval (min 1s)
 ```
 
 ### Filtering Options
@@ -89,7 +97,7 @@ kubechart --no-color
 │   │       └── POD  ✖ api-server-7d9f-rs7w  node-03  CrashLoopBackOff  5 restarts
 │   ├── ◆ StatefulSet  postgres  [1/1]
 │   │   └── POD  ● postgres-0  node-03  PVC: pg-data-0
-│   ├── ● SVC  api-svc  ClusterIP  10.96.0.50  80/TCP
+│   ├── ● SVC  ClusterIP api-svc  10.96.0.50  80/TCP
 │   └── ◆ ING  api.example.com  🔒  → /, /api
 
 └── NAMESPACE  staging  [Active]

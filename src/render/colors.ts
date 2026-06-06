@@ -7,6 +7,7 @@ export const colors = {
   failed: '#ef4444', // red
   succeeded: '#6b7280', // gray
   unknown: '#6b7280', // gray
+  completed: '#10b981', // emerald (for job completed)
 
   // Workload colors
   deployment: '#3b82f6', // blue
@@ -26,12 +27,14 @@ export const colors = {
   namespace: '#06b6d4', // cyan
   workload: '#d946ef', // magenta
   ingress: '#ec4899', // pink
+  configMap: '#f97316', // orange
 
   // UI colors
   header: '#06b6d4', // cyan
   tree: '#6b7280', // gray
   error: '#ef4444', // red
   warning: '#eab308', // yellow
+  ip: '#eab308', // yellow
 };
 
 let useColors = true;

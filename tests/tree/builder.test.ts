@@ -31,6 +31,8 @@ describe('buildTree', () => {
       pods: [],
       services: [],
       ingresses: [],
+      configMaps: [],
+      secrets: [],
       serverVersion: 'v1.29.0',
       nodeCount: 3,
     };
@@ -105,6 +107,8 @@ describe('buildTree', () => {
       ],
       services: [],
       ingresses: [],
+      configMaps: [],
+      secrets: [],
       serverVersion: 'v1.29.0',
       nodeCount: 3,
     };
@@ -170,6 +174,8 @@ describe('buildTree', () => {
       ],
       services: [],
       ingresses: [],
+      configMaps: [],
+      secrets: [],
       serverVersion: 'v1.29.0',
       nodeCount: 3,
     };
@@ -233,6 +239,8 @@ describe('buildTree', () => {
       ],
       services: [],
       ingresses: [],
+      configMaps: [],
+      secrets: [],
       serverVersion: 'v1.29.0',
       nodeCount: 3,
     };
@@ -295,6 +303,8 @@ describe('buildTree', () => {
       ],
       services: [],
       ingresses: [],
+      configMaps: [],
+      secrets: [],
       serverVersion: 'v1.29.0',
       nodeCount: 3,
     };
@@ -359,6 +369,8 @@ describe('buildTree', () => {
       ],
       services: [],
       ingresses: [],
+      configMaps: [],
+      secrets: [],
       serverVersion: 'v1.29.0',
       nodeCount: 3,
     };
@@ -396,6 +408,8 @@ describe('buildTree', () => {
         }),
       ],
       ingresses: [],
+      configMaps: [],
+      secrets: [],
       serverVersion: 'v1.29.0',
       nodeCount: 3,
     };
@@ -447,6 +461,8 @@ describe('buildTree', () => {
           },
         }),
       ],
+      configMaps: [],
+      secrets: [],
       serverVersion: 'v1.29.0',
       nodeCount: 3,
     };
@@ -564,6 +580,8 @@ describe('buildTree', () => {
       ],
       services: [],
       ingresses: [],
+      configMaps: [],
+      secrets: [],
       serverVersion: 'v1.29.0',
       nodeCount: 3,
     };
@@ -591,6 +609,8 @@ describe('buildTree', () => {
       pods: [],
       services: [],
       ingresses: [],
+      configMaps: [],
+      secrets: [],
       serverVersion: 'v1.29.0',
       nodeCount: 3,
     };
@@ -665,6 +685,8 @@ describe('buildTree', () => {
       ],
       services: [],
       ingresses: [],
+      configMaps: [],
+      secrets: [],
       serverVersion: 'v1.29.0',
       nodeCount: 3,
     };
@@ -745,6 +767,8 @@ describe('buildTree', () => {
       ],
       services: [],
       ingresses: [],
+      configMaps: [],
+      secrets: [],
       serverVersion: 'v1.29.0',
       nodeCount: 3,
     };
@@ -802,6 +826,8 @@ describe('buildTree', () => {
       pods: [],
       services: [],
       ingresses: [],
+      configMaps: [],
+      secrets: [],
       serverVersion: 'v1.29.0',
       nodeCount: 3,
     };
@@ -825,6 +851,8 @@ describe('buildTree', () => {
       pods: [asV1Pod({})],
       services: [asV1Service({})],
       ingresses: [asV1Ingress({})],
+      configMaps: [],
+      secrets: [],
       serverVersion: 'v1.29.0',
       nodeCount: 3,
     };

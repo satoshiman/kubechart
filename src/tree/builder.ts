@@ -8,6 +8,7 @@ import type {
   ServiceNode,
   IngressNode,
   ReplicaSetNode,
+  ConfigMapNode,
 } from './types.js';
 
 export interface FilterOptions {
@@ -50,13 +51,25 @@ export function buildTree(
       const nsIngresses = raw.ingresses.filter(
         (i: { metadata?: { namespace?: string } }) => i.metadata?.namespace === nsName
       );
+      const nsConfigMaps = raw.configMaps.filter(
+        (c: { metadata?: { namespace?: string } }) => c.metadata?.namespace === nsName
+      );
+      const nsSecrets = (raw.secrets || []).filter(
+        (s: { metadata?: { namespace?: string } }) => s.metadata?.namespace === nsName
+      );
 
       // Build workload nodes from all resource types
+      // Filter out jobs that are owned by CronJobs to avoid duplication
+      const standaloneJobs = nsJobs.filter((job) => {
+        const owners = job.metadata?.ownerReferences || [];
+        return !owners.some((owner) => owner.kind === 'CronJob');
+      });
+
       const workloads: WorkloadNode[] = [
         ...nsDeployments.map((d) => buildWorkloadFromDeployment(d, nsReplicaSets, raw.pods)),
         ...nsStatefulSets.map((s) => buildWorkloadFromStatefulSet(s, raw.pods)),
         ...nsDaemonSets.map((d) => buildWorkloadFromDaemonSet(d, raw.pods)),
-        ...nsJobs.map((j) => buildWorkloadFromJob(j, raw.pods)),
+        ...standaloneJobs.map((j) => buildWorkloadFromJob(j, raw.pods)),
         ...nsCronJobs.map((c) => buildWorkloadFromCronJob(c, raw.pods)),
       ];
 
@@ -64,7 +77,10 @@ export function buildTree(
       const services: ServiceNode[] = nsServices.map((s) => buildServiceNode(s));
 
       // Build ingress nodes
-      const ingresses: IngressNode[] = nsIngresses.map((i) => buildIngressNode(i));
+      const ingresses: IngressNode[] = nsIngresses.map((i) => buildIngressNode(i, nsSecrets));
+
+      // Build configMap nodes
+      const configMaps: ConfigMapNode[] = nsConfigMaps.map((c) => buildConfigMapNode(c));
 
       return {
         name: nsName,
@@ -72,6 +88,7 @@ export function buildTree(
         workloads,
         services,
         ingresses,
+        configMaps,
       };
     }
   );
@@ -115,6 +132,77 @@ export function buildTree(
   };
 }
 
+function formatAge(creationTimestamp: Date | string | undefined): string {
+  if (!creationTimestamp) return 'unknown';
+
+  const created =
+    typeof creationTimestamp === 'string' ? new Date(creationTimestamp) : creationTimestamp;
+  const now = new Date();
+  const diffMs = now.getTime() - created.getTime();
+  const diffSec = Math.floor(diffMs / 1000);
+  const diffMin = Math.floor(diffSec / 60);
+  const diffHour = Math.floor(diffMin / 60);
+  const diffDay = Math.floor(diffHour / 24);
+
+  if (diffSec < 60) return `${diffSec}s ago`;
+  if (diffMin < 60) return `${diffMin}m ago`;
+  if (diffHour < 24) return `${diffHour}h ago`;
+  return `${diffDay}d ago`;
+}
+
+function calculateNextSchedule(schedule: string, lastScheduleTime?: Date | string): string {
+  // Parse cron schedule to estimate next run time
+  // This is a simplified implementation for common patterns
+  const parts = schedule.split(' ');
+  if (parts.length < 5) return 'unknown';
+
+  const minute = parts[0];
+  const hour = parts[1];
+
+  const now = new Date();
+  const last = lastScheduleTime
+    ? typeof lastScheduleTime === 'string'
+      ? new Date(lastScheduleTime)
+      : lastScheduleTime
+    : now;
+
+  // Handle */N pattern for minutes (e.g., */5 * * * *)
+  const minuteMatch = minute.match(/\*\/(\d+)/);
+  if (minuteMatch) {
+    const interval = parseInt(minuteMatch[1], 10);
+    const nextRun = new Date(last.getTime() + interval * 60 * 1000);
+    const diffMs = nextRun.getTime() - now.getTime();
+    const diffMin = Math.ceil(diffMs / (60 * 1000));
+    if (diffMin <= 0) return '~0m';
+    if (diffMin < 60) return `~${diffMin}m`;
+    const diffHour = Math.ceil(diffMin / 60);
+    return `~${diffHour}h`;
+  }
+
+  // Handle hourly (0 * * * *)
+  if (minute === '0' && hour === '*') {
+    const nextHour = new Date(now);
+    nextHour.setMinutes(0, 0, 0);
+    nextHour.setHours(nextHour.getHours() + 1);
+    const diffMs = nextHour.getTime() - now.getTime();
+    const diffMin = Math.ceil(diffMs / (60 * 1000));
+    return `~${diffMin}m`;
+  }
+
+  // Handle daily (0 0 * * *)
+  if (minute === '0' && hour === '0') {
+    const nextDay = new Date(now);
+    nextDay.setHours(0, 0, 0, 0);
+    nextDay.setDate(nextDay.getDate() + 1);
+    const diffMs = nextDay.getTime() - now.getTime();
+    const diffHour = Math.ceil(diffMs / (60 * 60 * 1000));
+    return `~${diffHour}h`;
+  }
+
+  // Default: return the schedule expression
+  return schedule;
+}
+
 function buildPodNode(pod: import('@kubernetes/client-node').V1Pod): PodNode {
   const name = pod.metadata?.name || 'unknown';
   const phase = (pod.status?.phase as PodPhase) || 'Unknown';
@@ -139,6 +227,9 @@ function buildPodNode(pod: import('@kubernetes/client-node').V1Pod): PodNode {
   const totalContainers = pod.status?.containerStatuses?.length || 1;
   const ready = `${readyContainers}/${totalContainers}`;
 
+  // Calculate age
+  const age = formatAge(pod.metadata?.creationTimestamp);
+
   return {
     name,
     phase,
@@ -147,6 +238,7 @@ function buildPodNode(pod: import('@kubernetes/client-node').V1Pod): PodNode {
     restarts,
     reason,
     ready,
+    age,
   };
 }
 
@@ -276,12 +368,37 @@ function buildWorkloadFromJob(
   const ready = `${succeeded}/${total}`;
   const image = job.spec?.template?.spec?.containers?.[0]?.image || 'unknown';
 
+  // Calculate job duration
+  let duration: string | undefined;
+  const startTime = job.status?.startTime;
+  const completionTime = job.status?.completionTime;
+  if (startTime) {
+    const start = typeof startTime === 'string' ? new Date(startTime) : startTime;
+    const end = completionTime
+      ? typeof completionTime === 'string'
+        ? new Date(completionTime)
+        : completionTime
+      : new Date();
+    const diffMs = end.getTime() - start.getTime();
+    const diffSec = Math.floor(diffMs / 1000);
+    if (diffSec < 60) {
+      duration = `${diffSec}s`;
+    } else if (diffSec < 3600) {
+      const diffMin = Math.floor(diffSec / 60);
+      duration = `${diffMin}m`;
+    } else {
+      const diffHour = Math.floor(diffSec / 3600);
+      duration = `${diffHour}h`;
+    }
+  }
+
   return {
     name: jobName,
     kind: 'Job',
     ready,
     image,
     pods: jobPods.map((p) => buildPodNode(p)),
+    duration,
   };
 }
 
@@ -305,12 +422,24 @@ function buildWorkloadFromCronJob(
   const ready = `${active} jobs`;
   const image = cj.spec?.jobTemplate?.spec?.template?.spec?.containers?.[0]?.image || 'unknown';
 
+  // Format last schedule time
+  const lastScheduleTime = cj.status?.lastScheduleTime
+    ? formatAge(cj.status.lastScheduleTime)
+    : 'never';
+
+  // Calculate next schedule time from cron schedule
+  const nextScheduleTime = cj.spec?.schedule
+    ? calculateNextSchedule(cj.spec.schedule, cj.status?.lastScheduleTime)
+    : undefined;
+
   return {
     name: cjName,
     kind: 'CronJob',
     ready,
     image,
     pods: cjPods.map((p) => buildPodNode(p)),
+    lastScheduleTime,
+    nextScheduleTime,
   };
 }
 
@@ -328,15 +457,45 @@ function buildServiceNode(service: import('@kubernetes/client-node').V1Service):
       return `${port}/${protocol}`;
     }) || [];
 
+  // Extract nodePort from the first port if type is NodePort
+  const nodePort = type === 'NodePort' ? service.spec?.ports?.[0]?.nodePort : undefined;
+
+  // Check if external IP is pending for LoadBalancer
+  let externalIpPending = false;
+  let externalIp: string | undefined;
+  if (type === 'LoadBalancer') {
+    const ingress = service.status?.loadBalancer?.ingress;
+    if (
+      !ingress ||
+      ingress.length === 0 ||
+      (ingress[0].ip === '<pending>' && ingress[0].hostname === undefined)
+    ) {
+      externalIpPending = true;
+    } else {
+      const firstIngress = ingress[0];
+      if (firstIngress.ip && firstIngress.ip !== '<pending>') {
+        externalIp = firstIngress.ip;
+      } else if (firstIngress.hostname) {
+        externalIp = firstIngress.hostname;
+      }
+    }
+  }
+
   return {
     name,
     type,
     clusterIP,
     ports,
+    nodePort,
+    externalIp,
+    externalIpPending,
   };
 }
 
-function buildIngressNode(ingress: import('@kubernetes/client-node').V1Ingress): IngressNode {
+function buildIngressNode(
+  ingress: import('@kubernetes/client-node').V1Ingress,
+  secrets: import('@kubernetes/client-node').V1Secret[] = []
+): IngressNode {
   const name = ingress.metadata?.name || 'unknown';
   const tls = !!ingress.spec?.tls && ingress.spec.tls.length > 0;
 
@@ -347,10 +506,44 @@ function buildIngressNode(ingress: import('@kubernetes/client-node').V1Ingress):
     return rule.http?.paths?.map((p) => p.path || '/') || [];
   });
 
+  // Extract backend service from the first path
+  const firstPath = rules[0]?.http?.paths?.[0];
+  let backend: string | undefined;
+  if (firstPath?.backend?.service) {
+    const serviceName = firstPath.backend.service.name;
+    const servicePort =
+      firstPath.backend.service.port?.number || firstPath.backend.service.port?.name;
+    backend = servicePort ? `${serviceName}:${servicePort}` : serviceName;
+  }
+
+  // Check if TLS secret exists
+  let tlsSecretMissing = false;
+  if (tls && ingress.spec?.tls?.[0]?.secretName) {
+    const secretName = ingress.spec.tls[0].secretName;
+    const secretExists = secrets.some(
+      (s: { metadata?: { name?: string } }) => s.metadata?.name === secretName
+    );
+    tlsSecretMissing = !secretExists;
+  }
+
   return {
     name,
     host,
     paths,
     tls,
+    backend,
+    tlsSecretMissing,
+  };
+}
+
+function buildConfigMapNode(
+  configMap: import('@kubernetes/client-node').V1ConfigMap
+): ConfigMapNode {
+  const name = configMap.metadata?.name || 'unknown';
+  const keys = Object.keys(configMap.data || {}).length;
+
+  return {
+    name,
+    keys,
   };
 }
