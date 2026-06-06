@@ -7,15 +7,26 @@ import { useFlash } from '../watch/flash.js';
 import { TreeView } from './TreeView.js';
 import { StatusBar } from './StatusBar.js';
 import { SYSTEM_NAMESPACES } from '../k8s/types.js';
+import {
+  fetchPodMetrics,
+  fetchNodeMetrics,
+  fetchNodeCapacity,
+  attachMetrics,
+} from '../k8s/metrics.js';
 import type { ClusterTree } from '../tree/types.js';
 import type { DiffResult } from '../watch/differ.js';
 import type { K8sClient } from '../k8s/client.js';
 import type { FetchOptions } from '../k8s/types.js';
+import type { MetricsMode } from '../metrics/types.js';
 
+export type DisplayMode = 'general' | 'bar' | 'use' | 'use/lim' | 'use/req/lim';
 export interface WatchOptions {
   interval: number;
   fetchOpts: FetchOptions;
   client: K8sClient;
+  metrics?: MetricsMode | boolean;
+  bar?: boolean;
+  noMetrics?: boolean;
 }
 
 export function WatchView({ opts }: { opts: WatchOptions }): React.ReactElement {
@@ -33,6 +44,14 @@ export function WatchView({ opts }: { opts: WatchOptions }): React.ReactElement 
   );
   const [allNamespaces, setAllNamespaces] = useState<string[]>([]);
   const [showLegend, setShowLegend] = useState(false);
+  const [showHelp, setShowHelp] = useState(false);
+  const [displayMode, setDisplayMode] = useState<DisplayMode>(() => {
+    if (!opts.metrics) return 'general';
+    if (opts.bar) return 'bar';
+    if (typeof opts.metrics === 'boolean') return 'bar';
+    return opts.metrics;
+  });
+  const DISPLAY_MODE_CYCLE: DisplayMode[] = ['general', 'bar', 'use', 'use/lim', 'use/req/lim'];
   const flashing = useFlash(diff.changed);
 
   const fetchTree = useCallback(async () => {
@@ -44,10 +63,21 @@ export function WatchView({ opts }: { opts: WatchOptions }): React.ReactElement 
         namespace: currentNamespace,
       };
       const rawData = await fetchClusterData(opts.client, fetchOptsWithNs);
-      const newTree = buildTree(rawData, opts.client.contextName, {
+      let newTree = buildTree(rawData, opts.client.contextName, {
         showErrors: opts.fetchOpts.showErrors,
         selector: opts.fetchOpts.selector,
       });
+
+      // Fetch and attach metrics if not disabled
+      if (!opts.noMetrics) {
+        const namespaceForMetrics = Array.isArray(currentNamespace) ? undefined : currentNamespace;
+        const [podMetrics, nodeMetrics, nodeCapacity] = await Promise.all([
+          fetchPodMetrics(opts.client.kc, namespaceForMetrics),
+          fetchNodeMetrics(opts.client.kc),
+          fetchNodeCapacity(opts.client.core),
+        ]);
+        newTree = attachMetrics(newTree, podMetrics, nodeMetrics, nodeCapacity);
+      }
 
       if (tree) {
         const newDiff = diffTrees(tree, newTree);
@@ -70,7 +100,7 @@ export function WatchView({ opts }: { opts: WatchOptions }): React.ReactElement 
       setError(errorMessage);
       setStatus('error');
     }
-  }, [tree, opts.client, opts.fetchOpts, opts.interval, currentNamespace]);
+  }, [tree, opts.client, opts.fetchOpts, opts.interval, currentNamespace, opts.noMetrics]);
 
   const fetchTreeRef = useRef(fetchTree);
   fetchTreeRef.current = fetchTree;
@@ -146,6 +176,19 @@ export function WatchView({ opts }: { opts: WatchOptions }): React.ReactElement 
     if (input === 'q' || (key.ctrl && input === 'c')) {
       process.exit(0);
     }
+    // v2 new keys:
+    if (input === 'm') {
+      setDisplayMode((m: DisplayMode) => {
+        const idx = DISPLAY_MODE_CYCLE.indexOf(m);
+        return DISPLAY_MODE_CYCLE[(idx + 1) % DISPLAY_MODE_CYCLE.length];
+      });
+    }
+    if (input === 'g') {
+      setDisplayMode('general');
+    }
+    if (input === '?') {
+      setShowHelp((v) => !v);
+    }
 
     // Namespace switching with number keys
     if (allNamespaces.length > 0) {
@@ -188,7 +231,6 @@ export function WatchView({ opts }: { opts: WatchOptions }): React.ReactElement 
             diff={diff}
             interval={currentInterval}
             lastUpdated={lastUpdated}
-            timeUntilRefresh={timeUntilRefresh}
             tree={tree || undefined}
             showLegend={showLegend}
             isPaused={isPaused}
@@ -222,7 +264,6 @@ export function WatchView({ opts }: { opts: WatchOptions }): React.ReactElement 
           diff={diff}
           interval={currentInterval}
           lastUpdated={lastUpdated}
-          timeUntilRefresh={timeUntilRefresh}
           tree={tree}
           showLegend={showLegend}
           isPaused={isPaused}
@@ -231,6 +272,11 @@ export function WatchView({ opts }: { opts: WatchOptions }): React.ReactElement 
     );
   }
 
+  const showMetrics = displayMode !== 'general';
+  const barMode = displayMode === 'bar';
+  const metricsMode: MetricsMode =
+    displayMode === 'bar' ? 'use/lim' : displayMode === 'general' ? 'use' : displayMode;
+
   return (
     <Box flexDirection="column">
       <TreeView
@@ -238,16 +284,23 @@ export function WatchView({ opts }: { opts: WatchOptions }): React.ReactElement 
         flashing={flashing}
         namespaces={allNamespaces}
         currentNamespace={currentNamespace}
+        metricsMode={metricsMode}
+        barMode={barMode}
+        showMetrics={showMetrics}
+        displayMode={displayMode}
+        timeUntilRefresh={timeUntilRefresh}
+        interval={currentInterval}
       />
       <StatusBar
         status={status}
         diff={diff}
         interval={currentInterval}
         lastUpdated={lastUpdated}
-        timeUntilRefresh={timeUntilRefresh}
         tree={tree}
         showLegend={showLegend}
         isPaused={isPaused}
+        showHelp={showHelp}
+        setShowHelp={setShowHelp}
       />
     </Box>
   );

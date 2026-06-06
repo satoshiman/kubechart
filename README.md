@@ -6,8 +6,12 @@ CLI tool to visualize Kubernetes cluster as an ASCII tree directly in your termi
 
 - **Watch Mode (Default)**: Auto-refresh with countdown timer, diff highlighting, and manual refresh with `r` key
 - **Pause/Resume**: Pause the countdown timer with `p` key to stop auto-refresh temporarily
-- **ASCII Tree Visualization**: Clean, readable tree structure showing namespaces, workloads, replicaSets, pods, services, and ingresses
+- **Real-time Metrics**: Display CPU, memory, and network metrics from metrics-server (graceful degradation if unavailable)
+- **Metrics Toggle Modes**: Cycle through `use`, `use/lim`, `use/req/lim` with `t` key
+- **Bar Chart Mode**: Visual resource usage as progress bars with `b` key
+- **ASCII Tree Visualization**: Clean, readable tree structure showing namespaces, workloads, replicaSets, pods, services, ingresses, and configmaps
 - **Kubernetes Hierarchy**: Displays proper Deployment → ReplicaSet → Pod structure for Deployments
+- **Inactive Replica Sets**: Old replica sets without pods are dimmed and marked as "(inactive)"
 - **CronJob Integration**: Jobs owned by CronJobs are nested under their parent CronJob to avoid duplication
 - **Color-Coded Status**: Visual indicators for pod health (Running, Pending, Failed, etc.)
 - **Resource Type Symbols**: Distinct symbols for Deployments, StatefulSets, DaemonSets, Jobs, CronJobs, ReplicaSets, Services, and Ingresses
@@ -61,6 +65,9 @@ kubechart --interval 10
 # - h: toggle pod status legend
 # - +/=: increase refresh interval (max 60s)
 # - -/_: decrease refresh interval (min 1s)
+# - t: cycle metrics mode (use → use/lim → use/req/lim)
+# - b: toggle bar chart mode
+# - ?: show help overlay
 ```
 
 ### Filtering Options
@@ -77,38 +84,64 @@ kubechart --selector app=api,env=prod
 kubechart --show-errors
 ```
 
+### Metrics Options
+
+```bash
+# Disable metrics display entirely
+kubechart --no-metrics
+
+# Set metrics display mode
+kubechart --metrics use          # usage only
+kubechart --metrics use/lim      # usage + limit (default)
+kubechart --metrics use/req/lim  # usage + request + limit
+
+# Display metrics as bar charts
+kubechart --bar
+```
+
 ### Output Options
 
 ```bash
 # Disable colored output
 kubechart --no-color
+
+# Export to JSON/YAML
+kubechart --output json --out-file cluster.json
+kubechart --output yaml --out-file cluster.yaml
 ```
 
 ### Examples
 
 ```
-◆ CLUSTER  prod-cluster  |  k8s v1.29.2  |  3 nodes
+◆ CLUSTER minikube | k8s v1.35.1 | 1 nodes
 
-├── NAMESPACE  production  [Active]
-│   ├── ▲ Deployment  api-server  [3/3]
-│   │   └── ◆ ReplicaSet  api-server-7d9f  [3/3]
-│   │       ├── POD  ● api-server-7d9f-xk2p  node-01  192.168.1.10  0 restarts
-│   │       ├── POD  ● api-server-7d9f-mn4q  node-02  192.168.1.11  0 restarts
-│   │       └── POD  ✖ api-server-7d9f-rs7w  node-03  CrashLoopBackOff  5 restarts
-│   ├── ◆ StatefulSet  postgres  [1/1]
-│   │   └── POD  ● postgres-0  node-03  PVC: pg-data-0
-│   ├── ● SVC  ClusterIP api-svc  10.96.0.50  80/TCP
-│   └── ◆ ING  api.example.com  🔒  → /, /api
+[g]eneral [m]etric: use/lim | ↺ 3/5s [-/+] [r]efresh [p]ause [q]uit [?]help
+[0] system ns [1] default [●] kubechart-test [3] kubernetes-dashboard
 
-└── NAMESPACE  staging  [Active]
-    └── ▲ Deployment  worker  [0/2]  ⚠ degraded
-        └── ◆ ReplicaSet  worker-abc  [0/2]
-            ├── POD  ◌ worker-abc-hk4p  Pending
-            └── POD  ✖ worker-abc-xx9q  OOMKilled  3 restarts
-
+└── NAMESPACE kubechart-test [Active]
+    ├── ▲ Deployment test-deployment [2/2]
+    │   ├── ◆ ReplicaSet test-deployment-76f555f8cd [2/2]
+    │   │   ├── POD ● test-deployment-76f555f8cd-d9jb6   CPU: 5m/10m  50%  MEM: 8Mi/20Mi  40%
+    │   │   └── POD ● test-deployment-76f555f8cd-gmv7w   CPU: 5m/10m  50%  MEM: 8Mi/20Mi  40%
+    │   └── ◆ ReplicaSet test-deployment-5cf658bb5 [0/1] (inactive)
+    ├── ◆ StatefulSet test-statefulset [2/2]
+    │   ├── POD ● test-statefulset-0                 CPU: 5m/10m  50%  MEM: 8Mi/20Mi  40%
+    │   └── POD ● test-statefulset-1                 CPU: 5m/10m  50%  MEM: 8Mi/20Mi  40%
+    ├── ■ DaemonSet test-daemonset [1/1]
+    │   └── POD ● test-daemonset-2m5jb               CPU: 5m/10m  50%  MEM: 8Mi/20Mi  40%
+    ├── ● Job test-job [1/1] duration: 9s
+    │   └── POD ○ test-job-vttcj                     Completed
+    ├── ○ CronJob test-cronjob [0 jobs] last: 3m ago + next: ~2m
+    │   └── POD ○ test-cronjob-29679440-sz72c       Completed
+    ├── SVC ● ClusterIP test-clusterip-svc           10.101.87.67  80/TCP
+    ├── SVC ▲ LoadBalancer test-loadbalancer-svc     [EXTERNAL-IP: <pending>]
+    ├── SVC ◆ NodePort test-nodeport-svc             10.102.234.145  80/TCP :30080
+    ├── ING ◆ test.local  / → test-clusterip-svc:80
+    ├── ING ◆ secure.local 🔒 / → test-clusterip-svc:80 [TLS secret missing]
+    ├── CM ◉ app-config 3 keys
+    └── CM ◉ test-config 2 keys
 ────────────────────────────────────────
-namespaces: 2  |  workloads: 3  |  pods: 5  |  services: 1  |  ingresses: 1
-Pod Status: ● Running+Ready  ◑ Running+NotReady  ◌ Pending  ✖ Failed  ○ Succeeded
+namespaces: 1 | workloads: 5 | pods: 9 | services: 3 | ingresses: 2 | configmaps: 3
 ```
 
 ## Pod Status Legend
@@ -136,6 +169,7 @@ Pod Status: ● Running+Ready  ◑ Running+NotReady  ◌ Pending  ✖ Failed  �
 | ▲      | LoadBalancer |
 | ○      | ExternalName |
 | ◆      | Ingress      |
+| ◉      | ConfigMap    |
 
 ## Error Handling
 

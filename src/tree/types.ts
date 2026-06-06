@@ -1,3 +1,10 @@
+import type {
+  PodMetrics,
+  AggregatedMetrics,
+  ClusterMetrics,
+  ServiceTraffic,
+} from '../metrics/types.js';
+
 export type PodPhase = 'Running' | 'Pending' | 'Failed' | 'Succeeded' | 'Unknown';
 
 export type ResourceKind =
@@ -17,6 +24,7 @@ export interface PodNode {
   reason?: string;
   ready: string;
   age: string;
+  metrics?: PodMetrics; // NEW: optional, absent khi metrics-server không khả dụng
 }
 
 export interface ServiceNode {
@@ -27,6 +35,7 @@ export interface ServiceNode {
   nodePort?: number;
   externalIp?: string;
   externalIpPending?: boolean;
+  traffic?: ServiceTraffic; // NEW: CONN + RPS
 }
 
 export interface IngressNode {
@@ -59,6 +68,7 @@ export interface WorkloadNode {
   lastScheduleTime?: string;
   nextScheduleTime?: string;
   duration?: string;
+  aggregatedMetrics?: AggregatedMetrics; // NEW: sum từ tất cả pods con
 }
 
 export interface NamespaceNode {
@@ -76,4 +86,5 @@ export interface ClusterTree {
   nodeCount: number;
   namespaces: NamespaceNode[];
   fetchedAt: Date;
+  clusterMetrics?: ClusterMetrics; // NEW: node-level aggregation
 }

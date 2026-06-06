@@ -9,47 +9,30 @@ interface StatusBarProps {
   diff: DiffResult;
   interval: number;
   lastUpdated?: Date;
-  timeUntilRefresh: number;
   tree?: ClusterTree;
   showLegend?: boolean;
   isPaused?: boolean;
+  showHelp?: boolean;
+  setShowHelp?: (show: boolean) => void;
 }
 
 export function StatusBar({
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   status,
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   diff,
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   interval,
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   lastUpdated,
-  timeUntilRefresh,
   tree,
   showLegend = false,
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   isPaused = false,
+  showHelp = false,
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  setShowHelp,
 }: StatusBarProps): React.ReactElement {
-  const formatTime = (date: Date) => {
-    return date.toLocaleTimeString('en-US', {
-      hour12: false,
-      hour: '2-digit',
-      minute: '2-digit',
-      second: '2-digit',
-    });
-  };
-
-  const diffSummary = () => {
-    const parts: string[] = [];
-    if (diff.added.length > 0) parts.push(`+${diff.added.length} added`);
-    if (diff.removed.length > 0) parts.push(`-${diff.removed.length} removed`);
-    if (diff.changed.length > 0) parts.push(`~${diff.changed.length} changed`);
-    return parts.length > 0 ? parts.join(', ') : 'no changes';
-  };
-
-  const loadingIcon = () => {
-    const frames = ['⠋', '⠙', '⠹', '⠸', '⠼', '⠴', '⠦', '⠧', '⠇', '⠏'];
-    const frameIndex = Math.floor(Date.now() / 100) % frames.length;
-    return frames[frameIndex];
-  };
-
-  const statusIcon = status === 'fetching' ? loadingIcon() : '↺';
-
   const stats = () => {
     if (!tree) return null;
 
@@ -98,19 +81,75 @@ export function StatusBar({
     );
   };
 
+  const helpOverlay = () => {
+    return (
+      <Box flexDirection="column">
+        <Text color={getColor('tree')}>Keyboard Controls:</Text>
+        <Text color={getColor('tree')}> [r] Refresh immediately</Text>
+        <Text color={getColor('tree')}> [p] Pause/resume countdown</Text>
+        <Text color={getColor('tree')}> [+/-] Adjust refresh interval (1-60s)</Text>
+        <Text color={getColor('tree')}> [h] Toggle pod status legend</Text>
+        <Text color={getColor('tree')}> [g] Switch to general mode</Text>
+        <Text color={getColor('tree')}>
+          {' '}
+          [m] Cycle display mode: general → bar → use → use/lim → use/req/lim
+        </Text>
+        <Text color={getColor('tree')}> [?] Show/hide this help</Text>
+        <Text color={getColor('tree')}> [q] Quit</Text>
+        <Text color={getColor('tree')}> [0-9] Switch namespace</Text>
+        <Text color={getColor('tree')}>────────────────────────────────────────</Text>
+        <Text color={getColor('tree')}>Pod Status:</Text>
+        <Text color={getColor('tree')}>
+          {' '}
+          <Text color={getColor('running')}>●</Text> Running+Ready
+        </Text>
+        <Text color={getColor('tree')}>
+          {' '}
+          <Text color={getColor('pending')}>◑</Text> Running+NotReady
+        </Text>
+        <Text color={getColor('tree')}>
+          {' '}
+          <Text color={getColor('pending')}>◌</Text> Pending
+        </Text>
+        <Text color={getColor('tree')}>
+          {' '}
+          <Text color={getColor('failed')}>✖</Text> Failed
+        </Text>
+        <Text color={getColor('tree')}>
+          {' '}
+          <Text color={getColor('succeeded')}>○</Text> Succeeded
+        </Text>
+        <Text color={getColor('tree')}>────────────────────────────────────────</Text>
+        <Text color={getColor('tree')}>Workload Icons:</Text>
+        <Text color={getColor('deployment')}> ▲ Deployment</Text>
+        <Text color={getColor('statefulSet')}> ◆ StatefulSet</Text>
+        <Text color={getColor('daemonSet')}> ■ DaemonSet</Text>
+        <Text color={getColor('job')}> ● Job</Text>
+        <Text color={getColor('cronJob')}> ○ CronJob</Text>
+        <Text color={getColor('workload')}> ◆ ReplicaSet</Text>
+        <Text color={getColor('clusterIP')}> ● ClusterIP</Text>
+        <Text color={getColor('loadBalancer')}> ▲ LoadBalancer</Text>
+        <Text color={getColor('nodePort')}> ◆ NodePort</Text>
+        <Text color={getColor('ingress')}> ◆ Ingress</Text>
+        <Text color={getColor('configMap')}> ◉ ConfigMap</Text>
+      </Box>
+    );
+  };
+
   return (
     <Box flexDirection="column" gap={0}>
       <Text color={getColor('tree')}>────────────────────────────────────────</Text>
       {stats()}
-      <Text dimColor>
-        Last updated: {lastUpdated ? formatTime(lastUpdated) : 'N/A'} ({diffSummary()}) |{' '}
-        {isPaused ? '⏸' : statusIcon} {timeUntilRefresh}/{interval}s [-/+] | [r]efresh [p]ause
-        [q]uit [h]elp
-      </Text>
       {showLegend && (
         <>
           <Text color={getColor('tree')}>────────────────────────────────────────</Text>
           {podStatusLegend()}
+        </>
+      )}
+      {showHelp && (
+        <>
+          <Text color={getColor('tree')}>────────────────────────────────────────</Text>
+          {helpOverlay()}
         </>
       )}
     </Box>

@@ -1,14 +1,29 @@
 import React from 'react';
-import { Box, Text } from 'ink';
-import type { ClusterTree, NamespaceNode } from '../tree/types.js';
+import { Box, Text, Spacer } from 'ink';
+import type {
+  ClusterTree,
+  NamespaceNode,
+  WorkloadNode,
+  PodNode,
+  ServiceNode,
+} from '../tree/types.js';
+import type { MetricsMode } from '../metrics/types.js';
 import { getPodStatusColor, getColor } from './colors.js';
 import { SYSTEM_NAMESPACES } from '../k8s/types.js';
+import { MetricsCell } from './MetricsCell.js';
+import { formatCpu, formatMem, calcPercent } from '../metrics/formatter.js';
 
 interface TreeViewProps {
   tree: ClusterTree;
   flashing?: Set<string>;
   namespaces?: string[];
   currentNamespace?: string | string[];
+  metricsMode?: MetricsMode;
+  barMode?: boolean;
+  displayMode?: 'general' | 'bar' | 'use' | 'use/lim' | 'use/req/lim';
+  showMetrics?: boolean;
+  timeUntilRefresh?: number;
+  interval?: number;
 }
 
 export function TreeView({
@@ -16,6 +31,12 @@ export function TreeView({
   flashing,
   namespaces = [],
   currentNamespace,
+  metricsMode = 'use/lim',
+  barMode = false,
+  showMetrics = true,
+  displayMode = 'general',
+  timeUntilRefresh = 5,
+  interval = 5,
 }: TreeViewProps): React.ReactElement {
   const namespaceList = () => {
     if (namespaces.length === 0) return null;
@@ -41,7 +62,6 @@ export function TreeView({
 
     return (
       <Box marginBottom={1}>
-        <Text dimColor>ns: </Text>
         <Text color={isShowingSystem ? 'cyan' : 'dimColor'}>
           {isShowingSystem ? '[●]' : '[0]'} system ns
         </Text>
@@ -54,11 +74,13 @@ export function TreeView({
   return (
     <Box flexDirection="column">
       {/* Cluster Header */}
-      <Box marginBottom={1}>
-        <Text color={getColor('header')}>
-          ◆ CLUSTER {tree.contextName} | k8s {tree.serverVersion} | {tree.nodeCount} nodes
-        </Text>
-      </Box>
+      <ClusterHeader tree={tree} showMetrics={showMetrics} />
+
+      {/* Controls */}
+      <Text>
+        [g]eneral [m]etric: <Text color={getColor('pending')}>{displayMode}</Text> | ↺{' '}
+        {timeUntilRefresh}/{interval}s [-/+] [r]efresh [p]ause [q]uit [?]help
+      </Text>
 
       {/* Namespace Selector */}
       {namespaceList()}
@@ -70,6 +92,9 @@ export function TreeView({
           namespace={ns}
           isLast={nsIndex === tree.namespaces.length - 1}
           flashing={flashing}
+          metricsMode={metricsMode}
+          barMode={barMode}
+          showMetrics={showMetrics}
         />
       ))}
     </Box>
@@ -77,55 +102,22 @@ export function TreeView({
 }
 
 interface NamespaceRowProps {
-  namespace: {
-    name: string;
-    status: string;
-    workloads: Array<{
-      name: string;
-      kind: string;
-      ready: string;
-      image: string;
-      pods?: Array<{
-        name: string;
-        phase: string;
-        nodeName: string;
-        ip: string;
-        restarts: number;
-        reason?: string;
-        ready: string;
-        age: string;
-      }>;
-      lastScheduleTime?: string;
-      nextScheduleTime?: string;
-      duration?: string;
-    }>;
-    services: Array<{
-      name: string;
-      type: string;
-      clusterIP: string;
-      ports: string[];
-      nodePort?: number;
-      externalIp?: string;
-      externalIpPending?: boolean;
-    }>;
-    ingresses: Array<{
-      name: string;
-      host: string;
-      paths: string[];
-      tls: boolean;
-      backend?: string;
-      tlsSecretMissing?: boolean;
-    }>;
-    configMaps: Array<{
-      name: string;
-      keys: number;
-    }>;
-  };
+  namespace: NamespaceNode;
   isLast: boolean;
   flashing?: Set<string>;
+  metricsMode?: MetricsMode;
+  barMode?: boolean;
+  showMetrics?: boolean;
 }
 
-function NamespaceRow({ namespace, isLast, flashing }: NamespaceRowProps): React.ReactElement {
+function NamespaceRow({
+  namespace,
+  isLast,
+  flashing,
+  metricsMode,
+  barMode,
+  showMetrics,
+}: NamespaceRowProps): React.ReactElement {
   const prefix = isLast ? '└──' : '├──';
   const childPrefix = isLast ? '    ' : '│   ';
 
@@ -162,6 +154,9 @@ function NamespaceRow({ namespace, isLast, flashing }: NamespaceRowProps): React
           }
           flashing={flashing}
           namespaceName={namespace.name}
+          metricsMode={metricsMode}
+          barMode={barMode}
+          showMetrics={showMetrics}
         />
       ))}
 
@@ -175,6 +170,7 @@ function NamespaceRow({ namespace, isLast, flashing }: NamespaceRowProps): React
             namespace.ingresses.length === 0 &&
             namespace.configMaps.length === 0
           }
+          showMetrics={showMetrics}
         />
       ))}
 
@@ -206,43 +202,14 @@ function NamespaceRow({ namespace, isLast, flashing }: NamespaceRowProps): React
 }
 
 interface WorkloadRowProps {
-  workload: {
-    name: string;
-    kind: string;
-    ready: string;
-    image: string;
-    replicaSets?: Array<{
-      name: string;
-      ready: string;
-      pods: Array<{
-        name: string;
-        phase: string;
-        nodeName: string;
-        ip: string;
-        restarts: number;
-        reason?: string;
-        ready: string;
-        age: string;
-      }>;
-    }>;
-    pods?: Array<{
-      name: string;
-      phase: string;
-      nodeName: string;
-      ip: string;
-      restarts: number;
-      reason?: string;
-      ready: string;
-      age: string;
-    }>;
-    lastScheduleTime?: string;
-    nextScheduleTime?: string;
-    duration?: string;
-  };
+  workload: WorkloadNode;
   prefix: string;
   isLast: boolean;
   flashing?: Set<string>;
   namespaceName: string;
+  metricsMode?: MetricsMode;
+  barMode?: boolean;
+  showMetrics?: boolean;
 }
 
 function WorkloadRow({
@@ -251,6 +218,9 @@ function WorkloadRow({
   isLast,
   flashing,
   namespaceName,
+  metricsMode,
+  barMode,
+  showMetrics,
 }: WorkloadRowProps): React.ReactElement {
   const wlPrefix = isLast ? '└──' : '├──';
   const podPrefix = isLast ? '    ' : '│   ';
@@ -258,6 +228,16 @@ function WorkloadRow({
 
   // For Deployments with ReplicaSets, show the hierarchy
   if (workload.kind === 'Deployment' && workload.replicaSets && workload.replicaSets.length > 0) {
+    // Sort replica sets: active (has pods) first, inactive (no pods) last
+    const sortedReplicaSets = [...workload.replicaSets].sort((a, b) => {
+      const hasPodsA = (a.pods || []).length > 0;
+      const hasPodsB = (b.pods || []).length > 0;
+      // Inactive (no pods) goes to the end
+      if (!hasPodsA && hasPodsB) return 1;
+      if (hasPodsA && !hasPodsB) return -1;
+      return 0;
+    });
+
     return (
       <Box flexDirection="column">
         <Box>
@@ -268,11 +248,23 @@ function WorkloadRow({
             {' '}
             {workload.kind} {workload.name} [{workload.ready}]
           </Text>
+          {showMetrics && (
+            <>
+              <Spacer />
+              <MetricsCell
+                metrics={workload.aggregatedMetrics}
+                mode={metricsMode!}
+                barMode={barMode!}
+              />
+            </>
+          )}
         </Box>
 
-        {workload.replicaSets.map((rs, rsIndex) => {
-          const rsPrefix = rsIndex === workload.replicaSets!.length - 1 ? '└──' : '├──';
-          const rsChildPrefix = rsIndex === workload.replicaSets!.length - 1 ? '    ' : '│   ';
+        {sortedReplicaSets.map((rs, rsIndex) => {
+          const rsPrefix = rsIndex === sortedReplicaSets.length - 1 ? '└──' : '├──';
+          const rsChildPrefix = rsIndex === sortedReplicaSets.length - 1 ? '    ' : '│   ';
+          const hasPods = (rs.pods || []).length > 0;
+          const isInactive = !hasPods;
 
           return (
             <Box key={rs.name} flexDirection="column">
@@ -281,9 +273,9 @@ function WorkloadRow({
                 <Text color={getColor('tree')}>{podPrefix}</Text>
                 <Text color={getColor('tree')}>{rsPrefix} </Text>
                 <Text color={getColor('statefulSet')}>◆</Text>
-                <Text color={getColor('workload')}>
+                <Text color={isInactive ? undefined : getColor('workload')} dimColor={isInactive}>
                   {' '}
-                  ReplicaSet {rs.name} [{rs.ready}]
+                  ReplicaSet {rs.name} [{rs.ready}]{isInactive && ' (inactive)'}
                 </Text>
               </Box>
 
@@ -295,6 +287,9 @@ function WorkloadRow({
                   isLast={podIndex === rs.pods.length - 1}
                   flashing={flashing}
                   podKey={`${namespaceName}/${workload.name}/${rs.name}/${pod.name}`}
+                  metricsMode={metricsMode}
+                  barMode={barMode}
+                  showMetrics={showMetrics}
                 />
               ))}
             </Box>
@@ -315,6 +310,16 @@ function WorkloadRow({
           {' '}
           {workload.kind} {workload.name} [{workload.ready}]
         </Text>
+        {showMetrics && workload.kind !== 'Job' && workload.kind !== 'CronJob' && (
+          <>
+            <Spacer />
+            <MetricsCell
+              metrics={workload.aggregatedMetrics}
+              mode={metricsMode!}
+              barMode={barMode!}
+            />
+          </>
+        )}
         {/* Show schedule info for CronJobs on same line */}
         {workload.kind === 'CronJob' &&
           (workload.lastScheduleTime || workload.nextScheduleTime) && (
@@ -335,11 +340,53 @@ function WorkloadRow({
           key={pod.name}
           pod={pod}
           prefix={prefix + podPrefix}
-          isLast={podIndex === (workload.pods || []).length - 1}
+          isLast={podIndex === (workload.pods || []).length - 1 && !workload.replicaSets?.length}
           flashing={flashing}
           podKey={`${namespaceName}/${workload.name}/${pod.name}`}
+          metricsMode={metricsMode}
+          barMode={barMode}
+          showMetrics={showMetrics}
         />
       ))}
+      {(() => {
+        const replicaSets = workload.replicaSets || [];
+        const activeRs = replicaSets.filter((rs) => {
+          const hasPods = (rs.pods || []).length > 0;
+          return hasPods;
+        });
+        const inactiveRs = replicaSets.filter((rs) => {
+          const hasPods = (rs.pods || []).length > 0;
+          return !hasPods;
+        });
+        const allRs = [...activeRs, ...inactiveRs];
+
+        return allRs.map((rs, rsIndex) => {
+          const hasPods = (rs.pods || []).length > 0;
+          const isInactive = !hasPods;
+          const isLast = rsIndex === allRs.length - 1;
+          return (
+            <Box key={rs.name}>
+              <Text color={isInactive ? undefined : getColor('tree')} dimColor={isInactive}>
+                {prefix}
+                {isLast ? '└──' : '├──'} RS {rs.name} [{rs.ready}]{isInactive && ' (inactive)'}
+              </Text>
+              {(rs.pods || []).map((pod, podIndex) => (
+                <PodRow
+                  key={pod.name}
+                  pod={pod}
+                  prefix={prefix + (isLast ? '    ' : '│   ')}
+                  isLast={podIndex === (rs.pods || []).length - 1}
+                  flashing={flashing}
+                  podKey={`${namespaceName}/${workload.name}/${pod.name}`}
+                  metricsMode={metricsMode}
+                  barMode={barMode}
+                  showMetrics={showMetrics}
+                />
+              ))}
+            </Box>
+          );
+        });
+      })()}
     </Box>
   );
 }
@@ -362,23 +409,26 @@ function getWorkloadIcon(kind: string): { icon: string; color: string } {
 }
 
 interface PodRowProps {
-  pod: {
-    name: string;
-    phase: string;
-    nodeName: string;
-    ip: string;
-    restarts: number;
-    reason?: string;
-    ready: string;
-    age: string;
-  };
+  pod: PodNode;
   prefix: string;
   isLast: boolean;
   flashing?: Set<string>;
   podKey: string;
+  metricsMode?: MetricsMode;
+  barMode?: boolean;
+  showMetrics?: boolean;
 }
 
-function PodRow({ pod, prefix, isLast, flashing, podKey }: PodRowProps): React.ReactElement {
+function PodRow({
+  pod,
+  prefix,
+  isLast,
+  flashing,
+  podKey,
+  metricsMode,
+  barMode,
+  showMetrics,
+}: PodRowProps): React.ReactElement {
   const podPrefix = isLast ? '└──' : '├──';
   const statusSymbol = getPodStatusSymbol(pod.phase, pod.ready);
   const statusColor = getPodStatusColor(pod.phase);
@@ -394,27 +444,54 @@ function PodRow({ pod, prefix, isLast, flashing, podKey }: PodRowProps): React.R
       >
         {statusSymbol} {pod.name}
       </Text>
-      <Text
-        backgroundColor={isFlashing ? 'white' : undefined}
-        color={isFlashing ? 'black' : getColor('tree')}
-      >
-        {' '}
-        {pod.nodeName}{' '}
-      </Text>
-      <Text
-        backgroundColor={isFlashing ? 'white' : undefined}
-        color={isFlashing ? 'black' : getColor('ip')}
-      >
-        {pod.ip}
-      </Text>
-      <Text
-        backgroundColor={isFlashing ? 'white' : undefined}
-        color={isFlashing ? 'black' : getColor('tree')}
-      >
-        {' '}
-        {pod.restarts}↺ {pod.age}
-      </Text>
-      {pod.reason && (
+      {showMetrics ? (
+        <>
+          <Text
+            backgroundColor={isFlashing ? 'white' : undefined}
+            color={isFlashing ? 'black' : getColor('tree')}
+          >
+            {' '}
+            {pod.phase}
+          </Text>
+          <Spacer />
+          <MetricsCell
+            metrics={pod.metrics?.resources}
+            mode={metricsMode!}
+            barMode={barMode!}
+            compact
+          />
+          {pod.metrics?.network && (
+            <Text dimColor>
+              {' '}
+              NET↑{formatNet(pod.metrics.network.txBytes)}↓{formatNet(pod.metrics.network.rxBytes)}
+            </Text>
+          )}
+        </>
+      ) : (
+        <>
+          <Text
+            backgroundColor={isFlashing ? 'white' : undefined}
+            color={isFlashing ? 'black' : getColor('tree')}
+          >
+            {' '}
+            {pod.nodeName}{' '}
+          </Text>
+          <Text
+            backgroundColor={isFlashing ? 'white' : undefined}
+            color={isFlashing ? 'black' : getColor('ip')}
+          >
+            {pod.ip}
+          </Text>
+          <Text
+            backgroundColor={isFlashing ? 'white' : undefined}
+            color={isFlashing ? 'black' : getColor('tree')}
+          >
+            {' '}
+            {pod.restarts}↺ {pod.age}
+          </Text>
+        </>
+      )}
+      {!showMetrics && pod.reason && (
         <Text
           backgroundColor={isFlashing ? 'white' : undefined}
           color={
@@ -455,20 +532,13 @@ function getPodStatusSymbol(phase: string, ready: string): string {
 }
 
 interface ServiceRowProps {
-  service: {
-    name: string;
-    type: string;
-    clusterIP: string;
-    ports: string[];
-    nodePort?: number;
-    externalIp?: string;
-    externalIpPending?: boolean;
-  };
+  service: ServiceNode;
   prefix: string;
   isLast: boolean;
+  showMetrics?: boolean;
 }
 
-function ServiceRow({ service, prefix, isLast }: ServiceRowProps): React.ReactElement {
+function ServiceRow({ service, prefix, isLast, showMetrics }: ServiceRowProps): React.ReactElement {
   const svcPrefix = isLast ? '└──' : '├──';
   const { icon, color } = getServiceIcon(service.type);
 
@@ -479,13 +549,29 @@ function ServiceRow({ service, prefix, isLast }: ServiceRowProps): React.ReactEl
       <Text color={color}>{icon} </Text>
       <Text color={color}>{service.type} </Text>
       <Text color={getColor('workload')}>{service.name} </Text>
-      <Text color={getColor('ip')}>{service.clusterIP}</Text>
-      <Text color={getColor('tree')}> {service.ports.join(', ')}</Text>
-      {service.nodePort && <Text color={getColor('tree')}> :{service.nodePort}</Text>}
-      {service.externalIp && <Text color={getColor('tree')}> EXTERNAL-IP: </Text>}
-      {service.externalIp && <Text color={getColor('ip')}>{service.externalIp}</Text>}
-      {service.externalIpPending && (
-        <Text color={getColor('error')}> [EXTERNAL-IP: &lt;pending&gt;]</Text>
+      {showMetrics ? (
+        <>
+          <Spacer />
+          <Text color={getColor('tree')}>{service.type.padEnd(12)} </Text>
+          <Text color={getColor('tree')}>CONN: {service.traffic?.activeConnections ?? '—'} </Text>
+          <Text color={getColor('tree')}>
+            RPS:{' '}
+            {service.traffic?.requestsPerSec !== undefined
+              ? `${service.traffic.requestsPerSec.toFixed(1)}/s`
+              : '—'}
+          </Text>
+        </>
+      ) : (
+        <>
+          <Text color={getColor('ip')}>{service.clusterIP}</Text>
+          <Text color={getColor('tree')}> {service.ports.join(', ')}</Text>
+          {service.nodePort && <Text color={getColor('tree')}> :{service.nodePort}</Text>}
+          {service.externalIp && <Text color={getColor('tree')}> EXTERNAL-IP: </Text>}
+          {service.externalIp && <Text color={getColor('ip')}>{service.externalIp}</Text>}
+          {service.externalIpPending && (
+            <Text color={getColor('error')}> [EXTERNAL-IP: &lt;pending&gt;]</Text>
+          )}
+        </>
       )}
     </Box>
   );
@@ -561,4 +647,47 @@ function ConfigMapRow({ configMap, prefix, isLast }: ConfigMapRowProps): React.R
       </Text>
     </Box>
   );
+}
+
+function ClusterHeader({
+  tree,
+  showMetrics,
+}: {
+  tree: ClusterTree;
+  showMetrics?: boolean;
+}): React.ReactElement {
+  if (!showMetrics || !tree.clusterMetrics) {
+    return (
+      <Box marginBottom={1}>
+        <Text color={getColor('header')}>
+          ◆ CLUSTER {tree.contextName} | k8s {tree.serverVersion} | {tree.nodeCount} nodes
+        </Text>
+      </Box>
+    );
+  }
+
+  const cpuStr = `CPU: ${formatCpu(tree.clusterMetrics.cpuUsage)}/${formatCpu(tree.clusterMetrics.cpuCapacity)} ${calcPercent(tree.clusterMetrics.cpuUsage, tree.clusterMetrics.cpuCapacity).toFixed(0)}%`;
+  const memStr = `MEM: ${formatMem(tree.clusterMetrics.memUsage)}/${formatMem(tree.clusterMetrics.memCapacity)} ${calcPercent(tree.clusterMetrics.memUsage, tree.clusterMetrics.memCapacity).toFixed(0)}%`;
+
+  return (
+    <Box marginBottom={1} justifyContent="space-between">
+      <Text color={getColor('header')}>
+        ◆ CLUSTER {tree.contextName} | k8s {tree.serverVersion} | {tree.nodeCount} nodes
+      </Text>
+      <Text dimColor>
+        {cpuStr} {memStr}
+      </Text>
+    </Box>
+  );
+}
+
+function formatNet(bytesPerSec: number): string {
+  if (bytesPerSec < 1024) {
+    return '0KB';
+  }
+  if (bytesPerSec < 1024 * 1024) {
+    return `${Math.round(bytesPerSec / 1024)}KB`;
+  }
+  const mb = bytesPerSec / (1024 * 1024);
+  return `${mb.toFixed(1)}MB`;
 }

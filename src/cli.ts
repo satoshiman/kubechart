@@ -17,7 +17,7 @@ const program = new Command();
 
 program
   .name('kubechart')
-  .description('Visualize Kubernetes cluster as ASCII tree')
+  .description('Visualize Kubernetes cluster as ASCII tree with real-time metrics')
   .version('0.1.0')
   .option('-n, --namespace <ns>', 'Filter by namespace')
   .option('-A, --all-namespaces', 'Show all namespaces')
@@ -29,6 +29,13 @@ program
   .option('--interval <seconds>', 'Watch refresh interval (default: 5)', '5')
   .option('--output <format>', 'Output format: json | yaml (requires --out-file)')
   .option('--out-file <path>', 'File path to write output (requires --output)')
+  // v2 new flags
+  .option(
+    '-m, --metrics [mode]',
+    'Metrics display mode: use | use/lim | use/req/lim (default: bar)'
+  )
+  .option('--no-metrics', 'Disable metrics display entirely')
+  .option('--bar', 'Display metrics as bar charts instead of numbers')
   .parse(process.argv);
 
 const options = program.opts();
@@ -113,6 +120,9 @@ async function main() {
           interval,
           fetchOpts,
           client,
+          metrics: options.metrics,
+          bar: options.bar,
+          noMetrics: options.noMetrics,
         },
       }),
       { patchConsole: false }

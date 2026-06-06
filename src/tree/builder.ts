@@ -10,6 +10,7 @@ import type {
   ReplicaSetNode,
   ConfigMapNode,
 } from './types.js';
+import { parseCpuQuantity, parseMemQuantity } from '../k8s/metrics.js';
 
 export interface FilterOptions {
   showErrors?: boolean;
@@ -230,6 +231,32 @@ function buildPodNode(pod: import('@kubernetes/client-node').V1Pod): PodNode {
   // Calculate age
   const age = formatAge(pod.metadata?.creationTimestamp);
 
+  // Extract CPU/memory requests and limits from pod spec
+  let cpuRequest: number | undefined;
+  let cpuLimit: number | undefined;
+  let memRequest: number | undefined;
+  let memLimit: number | undefined;
+
+  for (const container of pod.spec?.containers || []) {
+    const containerCpuRequest = container.resources?.requests?.cpu;
+    const containerCpuLimit = container.resources?.limits?.cpu;
+    const containerMemRequest = container.resources?.requests?.memory;
+    const containerMemLimit = container.resources?.limits?.memory;
+
+    if (containerCpuRequest) {
+      cpuRequest = (cpuRequest || 0) + parseCpuQuantity(containerCpuRequest);
+    }
+    if (containerCpuLimit) {
+      cpuLimit = (cpuLimit || 0) + parseCpuQuantity(containerCpuLimit);
+    }
+    if (containerMemRequest) {
+      memRequest = (memRequest || 0) + parseMemQuantity(containerMemRequest);
+    }
+    if (containerMemLimit) {
+      memLimit = (memLimit || 0) + parseMemQuantity(containerMemLimit);
+    }
+  }
+
   return {
     name,
     phase,
@@ -239,6 +266,16 @@ function buildPodNode(pod: import('@kubernetes/client-node').V1Pod): PodNode {
     reason,
     ready,
     age,
+    metrics: {
+      resources: {
+        cpuUsage: 0, // Will be updated by attachMetrics
+        cpuRequest,
+        cpuLimit,
+        memUsage: 0, // Will be updated by attachMetrics
+        memRequest,
+        memLimit,
+      },
+    },
   };
 }
 

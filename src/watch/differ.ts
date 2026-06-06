@@ -34,7 +34,7 @@ export function diffTrees(prev: ClusterTree, next: ClusterTree): DiffResult {
       const wlKey = workloadKey(ns.name, wl.name);
       prevWorkloads.add(wlKey);
 
-      for (const pod of wl.pods || []) {
+      for (const pod of wl.pods?.concat(wl.replicaSets?.flatMap((rs) => rs.pods) || []) || []) {
         const key = podKey(ns.name, wl.name, pod.name);
         prevPods.add(key);
       }
@@ -47,7 +47,7 @@ export function diffTrees(prev: ClusterTree, next: ClusterTree): DiffResult {
       const wlKey = workloadKey(ns.name, wl.name);
       nextWorkloads.add(wlKey);
 
-      for (const pod of wl.pods || []) {
+      for (const pod of wl.pods?.concat(wl.replicaSets?.flatMap((rs) => rs.pods) || []) || []) {
         const key = podKey(ns.name, wl.name, pod.name);
         nextPods.add(key);
       }
@@ -88,7 +88,7 @@ export function diffTrees(prev: ClusterTree, next: ClusterTree): DiffResult {
 
   for (const ns of prev.namespaces) {
     for (const wl of ns.workloads) {
-      for (const pod of wl.pods || []) {
+      for (const pod of wl.pods?.concat(wl.replicaSets?.flatMap((rs) => rs.pods) || []) || []) {
         const key = podKey(ns.name, wl.name, pod.name);
         prevPodMap.set(key, pod);
       }
@@ -97,7 +97,7 @@ export function diffTrees(prev: ClusterTree, next: ClusterTree): DiffResult {
 
   for (const ns of next.namespaces) {
     for (const wl of ns.workloads) {
-      for (const pod of wl.pods || []) {
+      for (const pod of wl.pods?.concat(wl.replicaSets?.flatMap((rs) => rs.pods) || []) || []) {
         const key = podKey(ns.name, wl.name, pod.name);
         nextPodMap.set(key, pod);
       }

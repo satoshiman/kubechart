@@ -6,6 +6,7 @@ export interface K8sClient {
   batch: k8s.BatchV1Api;
   networking: k8s.NetworkingV1Api;
   version: k8s.VersionApi;
+  kc: k8s.KubeConfig; // v2: expose raw KubeConfig để metrics.ts dùng custom HTTP requests
   contextName: string;
   currentNamespace: string;
 }
@@ -43,6 +44,7 @@ export function createClient(context?: string): K8sClient {
     batch: kc.makeApiClient(k8s.BatchV1Api),
     networking: kc.makeApiClient(k8s.NetworkingV1Api),
     version: kc.makeApiClient(k8s.VersionApi),
+    kc,
     contextName: kc.getCurrentContext(),
     currentNamespace,
   };
