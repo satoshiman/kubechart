@@ -14,7 +14,20 @@ export const SYSTEM_NAMESPACES = [
   'calico-system',
   'tigera-operator',
   'kube-dns',
+  'gke-*',
+  'gmp-public',
 ];
+
+// Check if a namespace is a system namespace (supports wildcard patterns)
+export function isSystemNamespace(ns: string): boolean {
+  return SYSTEM_NAMESPACES.some((pattern) => {
+    if (pattern.endsWith('*')) {
+      const prefix = pattern.slice(0, -1);
+      return ns.startsWith(prefix);
+    }
+    return ns === pattern;
+  });
+}
 
 export interface FetchOptions {
   namespace?: string | string[];

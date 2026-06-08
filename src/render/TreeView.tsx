@@ -9,7 +9,7 @@ import type {
 } from '../tree/types.js';
 import type { MetricsMode } from '../metrics/types.js';
 import { getPodStatusColor, getColor } from './colors.js';
-import { SYSTEM_NAMESPACES } from '../k8s/types.js';
+import { isSystemNamespace } from '../k8s/types.js';
 import { MetricsCell } from './MetricsCell.js';
 import { formatCpu, formatMem, calcPercent } from '../metrics/formatter.js';
 
@@ -41,7 +41,7 @@ export function TreeView({
   const namespaceList = () => {
     if (namespaces.length === 0) return null;
 
-    const nonSystemNs = namespaces.filter((ns) => !SYSTEM_NAMESPACES.includes(ns));
+    const nonSystemNs = namespaces.filter((ns) => !isSystemNamespace(ns));
 
     // Check if currentNamespace is an array (system namespaces) or matches a specific namespace
     const isShowingSystem = Array.isArray(currentNamespace);

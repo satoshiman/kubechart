@@ -6,7 +6,7 @@ import { diffTrees } from '../watch/differ.js';
 import { useFlash } from '../watch/flash.js';
 import { TreeView } from './TreeView.js';
 import { StatusBar } from './StatusBar.js';
-import { SYSTEM_NAMESPACES } from '../k8s/types.js';
+import { isSystemNamespace } from '../k8s/types.js';
 import {
   fetchPodMetrics,
   fetchNodeMetrics,
@@ -196,14 +196,14 @@ export function WatchView({ opts }: { opts: WatchOptions }): React.ReactElement 
       if (!isNaN(num)) {
         if (num === 0) {
           // Show system/plugin namespaces
-          const systemNs = allNamespaces.filter((ns) => SYSTEM_NAMESPACES.includes(ns));
+          const systemNs = allNamespaces.filter((ns) => isSystemNamespace(ns));
           if (systemNs.length > 0) {
             setCurrentNamespace(systemNs);
             setRefreshTrigger((prev) => prev + 1);
           }
         } else if (num >= 1) {
           // Show non-system namespaces (numbered 1, 2, 3...)
-          const nonSystemNs = allNamespaces.filter((ns) => !SYSTEM_NAMESPACES.includes(ns));
+          const nonSystemNs = allNamespaces.filter((ns) => !isSystemNamespace(ns));
           if (num <= nonSystemNs.length) {
             const newNamespace = nonSystemNs[num - 1];
             if (newNamespace !== currentNamespace) {
