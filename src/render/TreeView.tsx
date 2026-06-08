@@ -78,7 +78,7 @@ export function TreeView({
 
       {/* Controls */}
       <Text>
-        [g]eneral [m]etric: <Text color={getColor('pending')}>{displayMode}</Text> | ↺{' '}
+        [g]eneral [m]etric: <Text color={getColor('general')}>{displayMode}</Text> | ↺{' '}
         {timeUntilRefresh}/{interval}s [-/+] [r]efresh [p]ause [q]uit [?]help
       </Text>
 

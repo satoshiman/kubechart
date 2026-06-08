@@ -35,6 +35,7 @@ export const colors = {
   error: '#ef4444', // red
   warning: '#eab308', // yellow
   ip: '#eab308', // yellow
+  general: '#22c55e', // green
 };
 
 let useColors = true;
