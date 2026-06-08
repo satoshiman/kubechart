@@ -4,7 +4,7 @@
   "type": "module",
   "description": "Visualize Kubernetes cluster as ASCII tree in your terminal",
   "bin": {
-    "kubechart": "./dist/cli.js"
+    "kubechart": "dist/cli.js"
   },
   "main": "./dist/index.js",
   "files": [
@@ -36,7 +36,8 @@
     "node": ">=18.0.0"
   },
   "publishConfig": {
-    "access": "public"
+    "access": "public",
+    "provenance": true
   },
   "dependencies": {
     "@kubernetes/client-node": "^0.21.0",
