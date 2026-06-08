@@ -1,11 +1,10 @@
-name: Test, Build and Publish to npm
+name: Test and Build
 
 on:
   push:
     branches:
       - main
       - master
-  workflow_dispatch:
 
 jobs:
   test-and-build:
@@ -32,62 +31,3 @@ jobs:
 
       - name: Build
         run: npm run build
-
-  publish:
-    needs: test-and-build
-    runs-on: ubuntu-latest
-
-    permissions:
-      id-token: write
-      contents: write
-
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - name: Check for release trigger
-        id: check_release
-        run: |
-          if git log --oneline -1 | grep -q "\[release\]"; then
-            echo "release_triggered=true" >> $GITHUB_OUTPUT
-            echo "Release trigger found"
-          else
-            echo "release_triggered=false" >> $GITHUB_OUTPUT
-            echo "No release trigger found, skipping publish"
-            exit 1
-          fi
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '18'
-          cache: 'npm'
-
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Build
-        run: npm run build
-
-      - name: Read version from package.json
-        id: version
-        run: |
-          VERSION=$(node -p "require('./package.json').version")
-          echo "version=$VERSION" >> $GITHUB_OUTPUT
-          echo "Version: $VERSION"
-
-      - name: Create GitHub Release
-        uses: softprops/action-gh-release@v1
-        with:
-          tag_name: v${{ steps.version.outputs.version }}
-          name: v${{ steps.version.outputs.version }}
-          draft: false
-          prerelease: false
-          generate_release_notes: true
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Publish to npm
-        run: npm publish
