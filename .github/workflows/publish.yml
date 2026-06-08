@@ -5,8 +5,7 @@ on:
     branches:
       - main
       - master
-  release:
-    types: [published]
+  workflow_dispatch:
 
 jobs:
   test-and-build:
@@ -37,7 +36,7 @@ jobs:
   publish:
     needs: test-and-build
     runs-on: ubuntu-latest
-    if: github.event_name == 'release' && github.event.action == 'published'
+    if: contains(github.event.head_commit.message, '[release]')
 
     permissions:
       id-token: write
@@ -46,14 +45,6 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-          token: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Configure Git
-        run: |
-          git config --global user.name "github-actions[bot]"
-          git config --global user.email "github-actions[bot]@users.noreply.github.com"
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -67,15 +58,23 @@ jobs:
       - name: Build
         run: npm run build
 
-      - name: Bump version and publish
+      - name: Read version from package.json
+        id: version
         run: |
-          # Detect version bump type from release tag
-          if [[ "${{ github.event.release.tag_name }}" == *"major"* ]]; then
-            npm version major -m "Bump version to %s"
-          elif [[ "${{ github.event.release.tag_name }}" == *"minor"* ]]; then
-            npm version minor -m "Bump version to %s"
-          else
-            npm version patch -m "Bump version to %s"
-          fi
-          npm publish
-          git push --follow-tags
+          VERSION=$(node -p "require('./package.json').version")
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "Version: $VERSION"
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: v${{ steps.version.outputs.version }}
+          name: v${{ steps.version.outputs.version }}
+          draft: false
+          prerelease: false
+          generate_release_notes: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Publish to npm
+        run: npm publish
