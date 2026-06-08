@@ -153,6 +153,7 @@ namespaces: 1 | workloads: 5 | pods: 9 | services: 3 | ingresses: 2 | configmaps
 | `◌`    | yellow | Pending                               |
 | `✖`    | red    | Failed / CrashLoopBackOff / OOMKilled |
 | `○`    | gray   | Succeeded (Job completed)             |
+| `◍`    | orange | Terminating (being deleted)           |
 
 ## Resource Type Legend
 

@@ -526,6 +526,8 @@ function getPodStatusSymbol(phase: string, ready: string): string {
       return '✖';
     case 'Succeeded':
       return '○';
+    case 'Terminating':
+      return '◍';
     default:
       return '?';
   }

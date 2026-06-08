@@ -77,6 +77,8 @@ export function StatusBar({
         <Text color={getColor('failed')}>✖ Failed</Text>
         <Text color={getColor('tree')}> </Text>
         <Text color={getColor('succeeded')}>○ Succeeded</Text>
+        <Text color={getColor('tree')}> </Text>
+        <Text color={getColor('terminating')}>◍ Terminating</Text>
       </Box>
     );
   };
@@ -118,6 +120,10 @@ export function StatusBar({
         <Text color={getColor('tree')}>
           {' '}
           <Text color={getColor('succeeded')}>○</Text> Succeeded
+        </Text>
+        <Text color={getColor('tree')}>
+          {' '}
+          <Text color={getColor('terminating')}>◍</Text> Terminating
         </Text>
         <Text color={getColor('tree')}>────────────────────────────────────────</Text>
         <Text color={getColor('tree')}>Workload Icons:</Text>

@@ -206,7 +206,13 @@ function calculateNextSchedule(schedule: string, lastScheduleTime?: Date | strin
 
 function buildPodNode(pod: import('@kubernetes/client-node').V1Pod): PodNode {
   const name = pod.metadata?.name || 'unknown';
-  const phase = (pod.status?.phase as PodPhase) || 'Unknown';
+  let phase = (pod.status?.phase as PodPhase) || 'Unknown';
+
+  // If pod has deletionTimestamp, it's being terminated
+  if (pod.metadata?.deletionTimestamp) {
+    phase = 'Terminating';
+  }
+
   const nodeName = pod.spec?.nodeName || 'unknown';
   const ip = pod.status?.podIP || 'none';
 

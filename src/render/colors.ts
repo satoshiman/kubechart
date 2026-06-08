@@ -7,6 +7,7 @@ export const colors = {
   failed: '#ef4444', // red
   succeeded: '#6b7280', // gray
   unknown: '#6b7280', // gray
+  terminating: '#f97316', // orange
   completed: '#10b981', // emerald (for job completed)
 
   // Workload colors
@@ -56,6 +57,8 @@ export function getPodStatusColor(phase: string): string {
       return colors.failed;
     case 'Succeeded':
       return colors.succeeded;
+    case 'Terminating':
+      return colors.terminating;
     default:
       return colors.unknown;
   }

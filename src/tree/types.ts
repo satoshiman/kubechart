@@ -5,7 +5,7 @@ import type {
   ServiceTraffic,
 } from '../metrics/types.js';
 
-export type PodPhase = 'Running' | 'Pending' | 'Failed' | 'Succeeded' | 'Unknown';
+export type PodPhase = 'Running' | 'Pending' | 'Failed' | 'Succeeded' | 'Unknown' | 'Terminating';
 
 export type ResourceKind =
   | 'Deployment'

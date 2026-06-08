@@ -27,6 +27,10 @@ describe('colors', () => {
       expect(getPodStatusColor('Unknown')).toBe('#6b7280');
     });
 
+    it('should return orange for Terminating phase', () => {
+      expect(getPodStatusColor('Terminating')).toBe('#f97316');
+    });
+
     it('should return empty string when colors are disabled', () => {
       setUseColors(false);
       expect(getPodStatusColor('Running')).toBe('');
