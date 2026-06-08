@@ -13,12 +13,18 @@ import * as fs from 'fs';
 import * as yaml from 'js-yaml';
 import type { FetchOptions } from './k8s/types.js';
 
+// Read version from package.json
+const packageJson = JSON.parse(
+  fs.readFileSync(new URL('../package.json', import.meta.url), 'utf-8')
+);
+const version = packageJson.version as string;
+
 const program = new Command();
 
 program
   .name('kubechart')
   .description('Visualize Kubernetes cluster as ASCII tree with real-time metrics')
-  .version('0.2.8')
+  .version(version)
   .option('-n, --namespace <ns>', 'Filter by namespace')
   .option('-A, --all-namespaces', 'Show all namespaces')
   .option('--context <ctx>', 'Kubeconfig context to use')
