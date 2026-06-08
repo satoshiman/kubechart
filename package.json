@@ -35,6 +35,9 @@
   "engines": {
     "node": ">=18.0.0"
   },
+  "publishConfig": {
+    "access": "public"
+  },
   "dependencies": {
     "@kubernetes/client-node": "^0.21.0",
     "commander": "^12.0.0",
