@@ -56,5 +56,21 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Debug OIDC token
+        run: |
+          echo "Checking OIDC token availability..."
+          if [ -n "$ACTIONS_ID_TOKEN_REQUEST_TOKEN" ]; then
+            echo "ACTIONS_ID_TOKEN_REQUEST_TOKEN is set"
+          else
+            echo "ACTIONS_ID_TOKEN_REQUEST_TOKEN is NOT set"
+          fi
+          if [ -n "$ACTIONS_ID_TOKEN_REQUEST_URL" ]; then
+            echo "ACTIONS_ID_TOKEN_REQUEST_URL is set"
+          else
+            echo "ACTIONS_ID_TOKEN_REQUEST_URL is NOT set"
+          fi
+          echo "NPM config registry:"
+          npm config get registry
+
       - name: Publish to npm
-        run: npm publish
+        run: npm publish --verbose
