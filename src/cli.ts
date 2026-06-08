@@ -18,7 +18,7 @@ const program = new Command();
 program
   .name('kubechart')
   .description('Visualize Kubernetes cluster as ASCII tree with real-time metrics')
-  .version('0.1.0')
+  .version('0.2.8')
   .option('-n, --namespace <ns>', 'Filter by namespace')
   .option('-A, --all-namespaces', 'Show all namespaces')
   .option('--context <ctx>', 'Kubeconfig context to use')
