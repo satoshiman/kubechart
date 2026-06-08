@@ -36,7 +36,6 @@ jobs:
   publish:
     needs: test-and-build
     runs-on: ubuntu-latest
-    if: contains(github.event.commits.*.message, '[release]') || github.event_name == 'workflow_dispatch'
 
     permissions:
       id-token: write
@@ -45,6 +44,20 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Check for release trigger
+        id: check_release
+        run: |
+          if git log --oneline -1 | grep -q "\[release\]"; then
+            echo "release_triggered=true" >> $GITHUB_OUTPUT
+            echo "Release trigger found"
+          else
+            echo "release_triggered=false" >> $GITHUB_OUTPUT
+            echo "No release trigger found, skipping publish"
+            exit 1
+          fi
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
