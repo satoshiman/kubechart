@@ -23,9 +23,9 @@
     "format": "prettier --write \"src/**/*.{ts,tsx}\"",
     "prepublishOnly": "npm run build && npm test",
     "release": "npm run release:patch",
-    "release:patch": "npm version patch && npm run build && npm test && npm publish",
-    "release:minor": "npm version minor && npm run build && npm test && npm publish",
-    "release:major": "npm version major && npm run build && npm test && npm publish"
+    "release:patch": "npm version patch && npm publish",
+    "release:minor": "npm version minor && npm publish",
+    "release:major": "npm version major && npm publish"
   },
   "keywords": [
     "kubernetes",

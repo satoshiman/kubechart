@@ -431,7 +431,7 @@ function PodRow({
 }: PodRowProps): React.ReactElement {
   const podPrefix = isLast ? '└──' : '├──';
   const statusSymbol = getPodStatusSymbol(pod.phase, pod.ready);
-  const statusColor = getPodStatusColor(pod.phase);
+  const statusColor = getPodStatusColor(pod.phase, pod.ready);
   const isFlashing = flashing?.has(podKey);
 
   return (

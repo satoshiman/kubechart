@@ -45,11 +45,18 @@ export function setUseColors(enabled: boolean): void {
   useColors = enabled;
 }
 
-export function getPodStatusColor(phase: string): string {
+export function getPodStatusColor(phase: string, ready?: string): string {
   if (!useColors) return '';
 
   switch (phase) {
     case 'Running':
+      // Check if pod is running but not ready (e.g., 0/1, 1/2)
+      if (ready) {
+        const [readyContainers, totalContainers] = ready.split('/').map(Number);
+        if (readyContainers < totalContainers) {
+          return colors.pending;
+        }
+      }
       return colors.running;
     case 'Pending':
       return colors.pending;
