@@ -7,8 +7,9 @@ CLI tool to visualize Kubernetes cluster as an ASCII tree directly in your termi
 - **Watch Mode (Default)**: Auto-refresh with countdown timer, diff highlighting, and manual refresh with `r` key
 - **Pause/Resume**: Pause the countdown timer with `p` key to stop auto-refresh temporarily
 - **Real-time Metrics**: Display CPU, memory, and network metrics from metrics-server (graceful degradation if unavailable)
-- **Metrics Toggle Modes**: Cycle through `use`, `use/lim`, `use/req/lim` with `t` key
-- **Bar Chart Mode**: Visual resource usage as progress bars with `b` key
+- **Metrics Toggle Modes**: Cycle through `general`, `bar`, `use`, `use/lim`, `use/req/lim` with `m` key
+- **Bar Chart Mode**: Visual resource usage as progress bars
+- **Selector Toggle**: Show/hide label selectors and pod labels with `s` key
 - **ASCII Tree Visualization**: Clean, readable tree structure showing namespaces, workloads, replicaSets, pods, services, ingresses, and configmaps
 - **Kubernetes Hierarchy**: Displays proper Deployment → ReplicaSet → Pod structure for Deployments
 - **Inactive Replica Sets**: Old replica sets without pods are dimmed and marked as "(inactive)"
@@ -65,8 +66,8 @@ kubechart --interval 10
 # - h: toggle pod status legend
 # - +/=: increase refresh interval (max 60s)
 # - -/_: decrease refresh interval (min 1s)
-# - t: cycle metrics mode (use → use/lim → use/req/lim)
-# - b: toggle bar chart mode
+# - m: cycle metrics mode (general → bar → use → use/lim → use/req/lim)
+# - s: toggle selector display (show/hide label selectors and pod labels)
 # - ?: show help overlay
 ```
 
@@ -115,7 +116,7 @@ kubechart --output yaml --out-file cluster.yaml
 ```
 ◆ CLUSTER minikube | k8s v1.35.1 | 1 nodes
 
-[g]eneral [m]etric: use/lim | ↺ 3/5s [-/+] [r]efresh [p]ause [q]uit [?]help
+[m]etric: use/lim [s]elector: OFF | ↺ 3/5s [-/+] [r]efresh [p]ause [q]uit [?]help
 [0] system ns [1] default [●] kubechart-test [3] kubernetes-dashboard
 
 └── NAMESPACE kubechart-test [Active]

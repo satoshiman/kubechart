@@ -90,7 +90,8 @@ export function TreeView({
 
       {/* Controls */}
       <Text>
-        [g]eneral [m]etric: <Text color={getColor('general')}>{displayMode}</Text> [s]elector | ↺{' '}
+        [m]etric: <Text color={getColor('general')}>{displayMode}</Text> [s]elector:{' '}
+        <Text color={showSelectors ? 'green' : 'red'}>{showSelectors ? 'ON' : 'OFF'}</Text> | ↺{' '}
         {timeUntilRefresh}/{interval}s [-/+] [r]efresh [p]ause [q]uit [?]help
       </Text>
 
