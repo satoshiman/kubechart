@@ -13,7 +13,6 @@ import type {
 import { parseCpuQuantity, parseMemQuantity } from '../k8s/metrics.js';
 
 export interface FilterOptions {
-  showErrors?: boolean;
   selector?: string;
 }
 
@@ -74,6 +73,23 @@ export function buildTree(
         ...nsCronJobs.map((c) => buildWorkloadFromCronJob(c, raw.pods)),
       ];
 
+      // Find orphan pods (pods not owned by any workload in this namespace)
+      const nsPods = raw.pods.filter((p) => p.metadata?.namespace === nsName);
+      const ownedPodNames = new Set<string>();
+
+      // Collect all pod names that are owned by workloads
+      workloads.forEach((wl) => {
+        (wl.pods || []).forEach((pod) => ownedPodNames.add(pod.name));
+        (wl.replicaSets || []).forEach((rs) => {
+          (rs.pods || []).forEach((pod) => ownedPodNames.add(pod.name));
+        });
+      });
+
+      // Orphan pods are those in the namespace but not owned by any workload
+      const orphanPods = nsPods
+        .filter((p) => !ownedPodNames.has(p.metadata?.name || ''))
+        .map((p) => buildPodNode(p));
+
       // Build service nodes
       const services: ServiceNode[] = nsServices.map((s) => buildServiceNode(s));
 
@@ -90,21 +106,13 @@ export function buildTree(
         services,
         ingresses,
         configMaps,
+        orphanPods,
       };
     }
   );
 
   // Apply filters
   let filteredNamespaces = namespaces;
-
-  if (opts.showErrors) {
-    filteredNamespaces = namespaces.filter((ns: NamespaceNode) => {
-      return ns.workloads.some((wl: WorkloadNode) => {
-        const allPods = [...(wl.pods || []), ...(wl.replicaSets?.flatMap((rs) => rs.pods) || [])];
-        return allPods.some((pod: PodNode) => pod.phase !== 'Running');
-      });
-    });
-  }
 
   if (opts.selector) {
     // Parse label selector (simple implementation for app=env format)

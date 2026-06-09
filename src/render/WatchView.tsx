@@ -79,7 +79,6 @@ export function WatchView({ opts }: { opts: WatchOptions }): React.ReactElement 
       };
       const rawData = await fetchClusterData(opts.client, fetchOptsWithNs);
       let newTree = buildTree(rawData, opts.client.contextName, {
-        showErrors: opts.fetchOpts.showErrors,
         selector: opts.fetchOpts.selector,
       });
 

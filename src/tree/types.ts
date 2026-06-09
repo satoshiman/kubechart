@@ -84,6 +84,7 @@ export interface NamespaceNode {
   services: ServiceNode[];
   ingresses: IngressNode[];
   configMaps: ConfigMapNode[];
+  orphanPods?: PodNode[]; // Pods not owned by any workload
 }
 
 export interface ClusterTree {

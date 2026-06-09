@@ -28,6 +28,7 @@ CLI tool to visualize Kubernetes cluster as an ASCII tree directly in your termi
 - **CronJob Integration**: Jobs owned by CronJobs are nested under their parent CronJob to avoid duplication
 - **Color-Coded Status**: Visual indicators for pod health (Running, Pending, Failed, etc.)
 - **Resource Type Symbols**: Distinct symbols for Deployments, StatefulSets, DaemonSets, Jobs, CronJobs, ReplicaSets, Services, and Ingresses
+- **Orphan Pods**: Displays pods not owned by any workload (e.g., standalone pods, failed pods) under the namespace
 - **Flexible Filtering**: Filter by namespace, label selector, or show only resources with errors
 - **Multi-Context Support**: Switch between different kubeconfig contexts
 - **Error Handling**: Clear error messages for common K8s connection issues
@@ -92,9 +93,6 @@ kubechart --context my-eks-cluster
 # Label selector (same syntax as kubectl)
 kubechart -l app=api
 kubechart --selector app=api,env=prod
-
-# Show only workloads with errors
-kubechart --show-errors
 ```
 
 ### Metrics Options

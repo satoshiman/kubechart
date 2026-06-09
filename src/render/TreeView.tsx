@@ -141,12 +141,14 @@ function NamespaceRow({
     namespace.workloads.length > 0 ||
     namespace.services.length > 0 ||
     namespace.ingresses.length > 0 ||
-    namespace.configMaps.length > 0;
+    namespace.configMaps.length > 0 ||
+    (namespace.orphanPods && namespace.orphanPods.length > 0);
   const totalResources =
     namespace.workloads.length +
     namespace.services.length +
     namespace.ingresses.length +
-    namespace.configMaps.length;
+    namespace.configMaps.length +
+    (namespace.orphanPods?.length || 0);
 
   return (
     <Box flexDirection="column" marginBottom={hasResources ? 0 : 1}>
@@ -166,7 +168,8 @@ function NamespaceRow({
             wlIndex === totalResources - 1 &&
             namespace.services.length === 0 &&
             namespace.ingresses.length === 0 &&
-            namespace.configMaps.length === 0
+            namespace.configMaps.length === 0 &&
+            (!namespace.orphanPods || namespace.orphanPods.length === 0)
           }
           flashing={flashing}
           namespaceName={namespace.name}
@@ -185,7 +188,8 @@ function NamespaceRow({
           isLast={
             svcIndex === namespace.services.length - 1 &&
             namespace.ingresses.length === 0 &&
-            namespace.configMaps.length === 0
+            namespace.configMaps.length === 0 &&
+            (!namespace.orphanPods || namespace.orphanPods.length === 0)
           }
           showMetrics={showMetrics}
           showSelectors={showSelectors}
@@ -197,7 +201,11 @@ function NamespaceRow({
           key={ingress.name}
           ingress={ingress}
           prefix={childPrefix}
-          isLast={ingIndex === namespace.ingresses.length - 1 && namespace.configMaps.length === 0}
+          isLast={
+            ingIndex === namespace.ingresses.length - 1 &&
+            namespace.configMaps.length === 0 &&
+            (!namespace.orphanPods || namespace.orphanPods.length === 0)
+          }
         />
       ))}
 
@@ -206,9 +214,29 @@ function NamespaceRow({
           key={configMap.name}
           configMap={configMap}
           prefix={childPrefix}
-          isLast={cmIndex === namespace.configMaps.length - 1}
+          isLast={
+            cmIndex === namespace.configMaps.length - 1 &&
+            (!namespace.orphanPods || namespace.orphanPods.length === 0)
+          }
         />
       ))}
+
+      {namespace.orphanPods &&
+        namespace.orphanPods.length > 0 &&
+        namespace.orphanPods.map((pod, podIndex) => (
+          <PodRow
+            key={pod.name}
+            pod={pod}
+            prefix={childPrefix}
+            isLast={podIndex === namespace.orphanPods!.length - 1}
+            flashing={flashing}
+            podKey={`${namespace.name}/orphan/${pod.name}`}
+            metricsMode={metricsMode}
+            barMode={barMode}
+            showMetrics={showMetrics}
+            showSelectors={showSelectors}
+          />
+        ))}
 
       {!hasResources && !isLast && (
         <Box>

@@ -143,6 +143,7 @@ export interface NamespaceNode {
   workloads: WorkloadNode[];
   services: ServiceNode[];
   ingresses: IngressNode[];
+  orphanPods?: PodNode[]; // Pods không có owner hoặc không match với workload nào
 }
 
 export interface ClusterTree {

@@ -29,7 +29,6 @@ program
   .option('-A, --all-namespaces', 'Show all namespaces')
   .option('--context <ctx>', 'Kubeconfig context to use')
   .option('-l, --selector <sel>', 'Label selector (e.g. app=api,env=prod)')
-  .option('--show-errors', 'Only show workloads with errors')
   .option('--no-color', 'Disable colored output')
   .option('--once', 'Print chart once and exit (default: watch mode)')
   .option('--interval <seconds>', 'Watch refresh interval (default: 5)', '5')
@@ -66,14 +65,12 @@ async function main() {
       namespace: options.allNamespaces ? undefined : options.namespace,
       allNamespaces: options.allNamespaces,
       selector: options.selector,
-      showErrors: options.showErrors,
     };
 
     // Static mode (--once flag)
     if (options.once) {
       const rawData = await fetchClusterData(client, fetchOpts);
       const tree = buildTree(rawData, client.contextName, {
-        showErrors: options.showErrors,
         selector: options.selector,
       });
 

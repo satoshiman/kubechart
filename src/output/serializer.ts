@@ -78,6 +78,15 @@ export function serializeCluster(tree: ClusterTree): ClusterSnapshot {
         paths: ing.paths,
         tls: ing.tls,
       })),
+      orphanPods: ns.orphanPods?.map((pod) => ({
+        name: pod.name,
+        phase: pod.phase,
+        nodeName: pod.nodeName,
+        ip: pod.ip,
+        restarts: pod.restarts,
+        reason: pod.reason,
+        ready: pod.ready,
+      })),
     })),
   };
 }

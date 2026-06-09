@@ -33,7 +33,6 @@ export interface FetchOptions {
   namespace?: string | string[];
   allNamespaces?: boolean;
   selector?: string;
-  showErrors?: boolean;
 }
 
 export interface RawClusterData {
