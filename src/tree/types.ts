@@ -25,6 +25,7 @@ export interface PodNode {
   ready: string;
   age: string;
   metrics?: PodMetrics; // NEW: optional, absent khi metrics-server không khả dụng
+  labels?: string; // NEW: pod labels
 }
 
 export interface ServiceNode {
@@ -56,6 +57,7 @@ export interface ReplicaSetNode {
   name: string;
   ready: string;
   pods: PodNode[];
+  selector?: string; // NEW: label selector
 }
 
 export interface WorkloadNode {
@@ -69,6 +71,7 @@ export interface WorkloadNode {
   nextScheduleTime?: string;
   duration?: string;
   aggregatedMetrics?: AggregatedMetrics; // NEW: sum từ tất cả pods con
+  selector?: string; // NEW: label selector
 }
 
 export interface NamespaceNode {

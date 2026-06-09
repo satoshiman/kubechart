@@ -39,12 +39,15 @@ export function WatchView({ opts }: { opts: WatchOptions }): React.ReactElement 
   const [timeUntilRefresh, setTimeUntilRefresh] = useState(opts.interval);
   const [currentInterval, setCurrentInterval] = useState(opts.interval);
   const [isPaused, setIsPaused] = useState(false);
+  const [allNamespaces, setAllNamespaces] = useState<string[]>([]);
+
+  // Default to index 1 (non-default namespace) if no namespace specified
   const [currentNamespace, setCurrentNamespace] = useState<string | string[] | undefined>(
     opts.fetchOpts.namespace
   );
-  const [allNamespaces, setAllNamespaces] = useState<string[]>([]);
   const [showLegend, setShowLegend] = useState(false);
   const [showHelp, setShowHelp] = useState(false);
+  const [showSelectors, setShowSelectors] = useState(false);
   const [displayMode, setDisplayMode] = useState<DisplayMode>(() => {
     if (!opts.metrics) return 'general';
     if (opts.bar) return 'bar';
@@ -53,6 +56,15 @@ export function WatchView({ opts }: { opts: WatchOptions }): React.ReactElement 
   });
   const DISPLAY_MODE_CYCLE: DisplayMode[] = ['general', 'bar', 'use', 'use/lim', 'use/req/lim'];
   const flashing = useFlash(diff.changed);
+
+  // Helper function to sort namespaces (default at the end) - same as TreeView
+  const sortNamespaces = (nsList: string[]) => {
+    const nonSystemNs = nsList.filter((ns) => !isSystemNamespace(ns));
+    const defaultNs = nonSystemNs.filter((ns) => ns === 'default');
+    const otherNs = nonSystemNs.filter((ns) => ns !== 'default');
+    otherNs.sort();
+    return [...otherNs, ...defaultNs];
+  };
 
   const fetchTree = useCallback(async () => {
     try {
@@ -107,14 +119,40 @@ export function WatchView({ opts }: { opts: WatchOptions }): React.ReactElement 
 
   // Initial fetch
   useEffect(() => {
-    fetchTreeRef.current();
-    // Fetch all namespace names for the footer
+    // If namespace is already specified in opts, fetch tree immediately
+    if (opts.fetchOpts.namespace) {
+      fetchTreeRef.current();
+      return;
+    }
+
+    // Otherwise, fetch all namespace names first to set default namespace
     fetchAllNamespaceNames(opts.client)
-      .then(setAllNamespaces)
+      .then((nsList) => {
+        setAllNamespaces(nsList);
+
+        // Set default namespace to first non-default namespace (index 0 in sorted list)
+        const sortedNonSystemNs = sortNamespaces(nsList);
+        if (sortedNonSystemNs.length > 0) {
+          setCurrentNamespace(sortedNonSystemNs[0]);
+        } else {
+          // Fallback: no non-default namespaces available
+          setError('No non-default namespaces available');
+          setStatus('error');
+        }
+      })
       .catch((err) => {
         console.error('Failed to fetch namespace list:', err);
+        setError('Failed to fetch namespace list');
+        setStatus('error');
       });
   }, []);
+
+  // Fetch tree when currentNamespace is set (only for auto-selected namespace)
+  useEffect(() => {
+    if (currentNamespace && !opts.fetchOpts.namespace) {
+      fetchTreeRef.current();
+    }
+  }, [currentNamespace]);
 
   // Countdown timer - triggers API when reaches 0
   useEffect(() => {
@@ -189,6 +227,9 @@ export function WatchView({ opts }: { opts: WatchOptions }): React.ReactElement 
     if (input === '?') {
       setShowHelp((v) => !v);
     }
+    if (input === 's') {
+      setShowSelectors((v) => !v);
+    }
 
     // Namespace switching with number keys
     if (allNamespaces.length > 0) {
@@ -203,9 +244,15 @@ export function WatchView({ opts }: { opts: WatchOptions }): React.ReactElement 
           }
         } else if (num >= 1) {
           // Show non-system namespaces (numbered 1, 2, 3...)
+          // Sort same way as TreeView: default at the end
           const nonSystemNs = allNamespaces.filter((ns) => !isSystemNamespace(ns));
-          if (num <= nonSystemNs.length) {
-            const newNamespace = nonSystemNs[num - 1];
+          const defaultNs = nonSystemNs.filter((ns) => ns === 'default');
+          const otherNs = nonSystemNs.filter((ns) => ns !== 'default');
+          otherNs.sort();
+          const sortedNonSystemNs = [...otherNs, ...defaultNs];
+
+          if (num <= sortedNonSystemNs.length) {
+            const newNamespace = sortedNonSystemNs[num - 1];
             if (newNamespace !== currentNamespace) {
               setCurrentNamespace(newNamespace);
               setRefreshTrigger((prev) => prev + 1);
@@ -290,6 +337,7 @@ export function WatchView({ opts }: { opts: WatchOptions }): React.ReactElement 
         displayMode={displayMode}
         timeUntilRefresh={timeUntilRefresh}
         interval={currentInterval}
+        showSelectors={showSelectors}
       />
       <StatusBar
         status={status}

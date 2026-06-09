@@ -24,6 +24,7 @@ interface TreeViewProps {
   showMetrics?: boolean;
   timeUntilRefresh?: number;
   interval?: number;
+  showSelectors?: boolean;
 }
 
 export function TreeView({
@@ -37,18 +38,29 @@ export function TreeView({
   displayMode = 'general',
   timeUntilRefresh = 5,
   interval = 5,
+  showSelectors = false,
 }: TreeViewProps): React.ReactElement {
   const namespaceList = () => {
     if (namespaces.length === 0) return null;
 
     const nonSystemNs = namespaces.filter((ns) => !isSystemNamespace(ns));
 
+    // Separate "default" namespace and move it to the end
+    const defaultNs = nonSystemNs.filter((ns) => ns === 'default');
+    const otherNs = nonSystemNs.filter((ns) => ns !== 'default');
+
+    // Sort other namespaces alphabetically
+    otherNs.sort();
+
+    // Combine: other namespaces first, then default at the end
+    const sortedNonSystemNs = [...otherNs, ...defaultNs];
+
     // Check if currentNamespace is an array (system namespaces) or matches a specific namespace
     const isShowingSystem = Array.isArray(currentNamespace);
     const isShowingSpecific = typeof currentNamespace === 'string';
 
     // Build non-system namespace items (numbered 1, 2, 3...)
-    const nonSystemItems = nonSystemNs.map((ns, index) => {
+    const nonSystemItems = sortedNonSystemNs.map((ns, index) => {
       const isCurrent = isShowingSpecific && ns === currentNamespace;
       const color = isCurrent ? 'cyan' : 'dimColor';
       const prefix = isCurrent ? '[●]' : `[${index + 1}]`;
@@ -78,7 +90,7 @@ export function TreeView({
 
       {/* Controls */}
       <Text>
-        [g]eneral [m]etric: <Text color={getColor('general')}>{displayMode}</Text> | ↺{' '}
+        [g]eneral [m]etric: <Text color={getColor('general')}>{displayMode}</Text> [s]elector | ↺{' '}
         {timeUntilRefresh}/{interval}s [-/+] [r]efresh [p]ause [q]uit [?]help
       </Text>
 
@@ -95,6 +107,7 @@ export function TreeView({
           metricsMode={metricsMode}
           barMode={barMode}
           showMetrics={showMetrics}
+          showSelectors={showSelectors}
         />
       ))}
     </Box>
@@ -108,6 +121,7 @@ interface NamespaceRowProps {
   metricsMode?: MetricsMode;
   barMode?: boolean;
   showMetrics?: boolean;
+  showSelectors?: boolean;
 }
 
 function NamespaceRow({
@@ -117,6 +131,7 @@ function NamespaceRow({
   metricsMode,
   barMode,
   showMetrics,
+  showSelectors,
 }: NamespaceRowProps): React.ReactElement {
   const prefix = isLast ? '└──' : '├──';
   const childPrefix = isLast ? '    ' : '│   ';
@@ -157,6 +172,7 @@ function NamespaceRow({
           metricsMode={metricsMode}
           barMode={barMode}
           showMetrics={showMetrics}
+          showSelectors={showSelectors}
         />
       ))}
 
@@ -210,6 +226,7 @@ interface WorkloadRowProps {
   metricsMode?: MetricsMode;
   barMode?: boolean;
   showMetrics?: boolean;
+  showSelectors?: boolean;
 }
 
 function WorkloadRow({
@@ -221,6 +238,7 @@ function WorkloadRow({
   metricsMode,
   barMode,
   showMetrics,
+  showSelectors,
 }: WorkloadRowProps): React.ReactElement {
   const wlPrefix = isLast ? '└──' : '├──';
   const podPrefix = isLast ? '    ' : '│   ';
@@ -260,6 +278,14 @@ function WorkloadRow({
           )}
         </Box>
 
+        {showSelectors && workload.selector && (
+          <Box>
+            <Text color={getColor('tree')}>{prefix}</Text>
+            <Text color={getColor('tree')}>{podPrefix}</Text>
+            <Text dimColor> selector: {workload.selector}</Text>
+          </Box>
+        )}
+
         {sortedReplicaSets.map((rs, rsIndex) => {
           const rsPrefix = rsIndex === sortedReplicaSets.length - 1 ? '└──' : '├──';
           const rsChildPrefix = rsIndex === sortedReplicaSets.length - 1 ? '    ' : '│   ';
@@ -279,6 +305,15 @@ function WorkloadRow({
                 </Text>
               </Box>
 
+              {showSelectors && rs.selector && (
+                <Box>
+                  <Text color={getColor('tree')}>{prefix}</Text>
+                  <Text color={getColor('tree')}>{podPrefix}</Text>
+                  <Text color={getColor('tree')}>{rsChildPrefix}</Text>
+                  <Text dimColor> selector: {rs.selector}</Text>
+                </Box>
+              )}
+
               {rs.pods.map((pod, podIndex) => (
                 <PodRow
                   key={pod.name}
@@ -290,6 +325,7 @@ function WorkloadRow({
                   metricsMode={metricsMode}
                   barMode={barMode}
                   showMetrics={showMetrics}
+                  showSelectors={showSelectors}
                 />
               ))}
             </Box>
@@ -335,6 +371,14 @@ function WorkloadRow({
         )}
       </Box>
 
+      {showSelectors && workload.selector && (
+        <Box>
+          <Text color={getColor('tree')}>{prefix}</Text>
+          <Text color={getColor('tree')}>{podPrefix}</Text>
+          <Text dimColor> selector: {workload.selector}</Text>
+        </Box>
+      )}
+
       {(workload.pods || []).map((pod, podIndex) => (
         <PodRow
           key={pod.name}
@@ -346,6 +390,7 @@ function WorkloadRow({
           metricsMode={metricsMode}
           barMode={barMode}
           showMetrics={showMetrics}
+          showSelectors={showSelectors}
         />
       ))}
       {(() => {
@@ -381,6 +426,7 @@ function WorkloadRow({
                   metricsMode={metricsMode}
                   barMode={barMode}
                   showMetrics={showMetrics}
+                  showSelectors={showSelectors}
                 />
               ))}
             </Box>
@@ -417,6 +463,7 @@ interface PodRowProps {
   metricsMode?: MetricsMode;
   barMode?: boolean;
   showMetrics?: boolean;
+  showSelectors?: boolean;
 }
 
 function PodRow({
@@ -428,6 +475,7 @@ function PodRow({
   metricsMode,
   barMode,
   showMetrics,
+  showSelectors,
 }: PodRowProps): React.ReactElement {
   const podPrefix = isLast ? '└──' : '├──';
   const statusSymbol = getPodStatusSymbol(pod.phase, pod.ready);
@@ -435,76 +483,87 @@ function PodRow({
   const isFlashing = flashing?.has(podKey);
 
   return (
-    <Box>
-      <Text color={getColor('tree')}>{prefix}</Text>
-      <Text color={getColor('tree')}>{podPrefix} POD </Text>
-      <Text
-        backgroundColor={isFlashing ? 'white' : undefined}
-        color={isFlashing ? 'black' : statusColor}
-      >
-        {statusSymbol} {pod.name}
-      </Text>
-      {showMetrics ? (
-        <>
-          <Text
-            backgroundColor={isFlashing ? 'white' : undefined}
-            color={isFlashing ? 'black' : getColor('tree')}
-          >
-            {' '}
-            {pod.phase}
-          </Text>
-          <Spacer />
-          <MetricsCell
-            metrics={pod.metrics?.resources}
-            mode={metricsMode!}
-            barMode={barMode!}
-            compact
-          />
-          {pod.metrics?.network && (
-            <Text dimColor>
-              {' '}
-              NET↑{formatNet(pod.metrics.network.txBytes)}↓{formatNet(pod.metrics.network.rxBytes)}
-            </Text>
-          )}
-        </>
-      ) : (
-        <>
-          <Text
-            backgroundColor={isFlashing ? 'white' : undefined}
-            color={isFlashing ? 'black' : getColor('tree')}
-          >
-            {' '}
-            {pod.nodeName}{' '}
-          </Text>
-          <Text
-            backgroundColor={isFlashing ? 'white' : undefined}
-            color={isFlashing ? 'black' : getColor('ip')}
-          >
-            {pod.ip}
-          </Text>
-          <Text
-            backgroundColor={isFlashing ? 'white' : undefined}
-            color={isFlashing ? 'black' : getColor('tree')}
-          >
-            {' '}
-            {pod.restarts}↺ {pod.age}
-          </Text>
-        </>
-      )}
-      {!showMetrics && pod.reason && (
+    <Box flexDirection="column">
+      <Box>
+        <Text color={getColor('tree')}>{prefix}</Text>
+        <Text color={getColor('tree')}>{podPrefix} POD </Text>
         <Text
           backgroundColor={isFlashing ? 'white' : undefined}
-          color={
-            isFlashing
-              ? 'black'
-              : pod.reason === 'Completed'
-                ? getColor('completed')
-                : getColor('error')
-          }
+          color={isFlashing ? 'black' : statusColor}
         >
-          {' '}
-          {pod.reason}
+          {statusSymbol} {pod.name}
         </Text>
+        {showMetrics ? (
+          <>
+            <Text
+              backgroundColor={isFlashing ? 'white' : undefined}
+              color={isFlashing ? 'black' : getColor('tree')}
+            >
+              {' '}
+              {pod.phase}
+            </Text>
+            <Spacer />
+            <MetricsCell
+              metrics={pod.metrics?.resources}
+              mode={metricsMode!}
+              barMode={barMode!}
+              compact
+            />
+            {pod.metrics?.network && (
+              <Text dimColor>
+                {' '}
+                NET↑{formatNet(pod.metrics.network.txBytes)}↓
+                {formatNet(pod.metrics.network.rxBytes)}
+              </Text>
+            )}
+          </>
+        ) : (
+          <>
+            <Text
+              backgroundColor={isFlashing ? 'white' : undefined}
+              color={isFlashing ? 'black' : getColor('tree')}
+            >
+              {' '}
+              {pod.nodeName}{' '}
+            </Text>
+            <Text
+              backgroundColor={isFlashing ? 'white' : undefined}
+              color={isFlashing ? 'black' : getColor('ip')}
+            >
+              {pod.ip}
+            </Text>
+            <Text
+              backgroundColor={isFlashing ? 'white' : undefined}
+              color={isFlashing ? 'black' : getColor('tree')}
+            >
+              {' '}
+              {pod.restarts}↺ {pod.age}
+            </Text>
+          </>
+        )}
+        {!showMetrics && pod.reason && (
+          <Text
+            backgroundColor={isFlashing ? 'white' : undefined}
+            color={
+              isFlashing
+                ? 'black'
+                : pod.reason === 'Completed'
+                  ? getColor('completed')
+                  : getColor('error')
+            }
+          >
+            {' '}
+            {pod.reason}
+          </Text>
+        )}
+      </Box>
+
+      {showSelectors && pod.labels && (
+        <Box>
+          <Text color={getColor('tree')}>{prefix}</Text>
+          <Text color={getColor('tree')}>{isLast ? '    ' : '│   '}</Text>
+          <Text dimColor> labels: {pod.labels}</Text>
+        </Box>
       )}
     </Box>
   );

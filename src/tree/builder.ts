@@ -237,6 +237,13 @@ function buildPodNode(pod: import('@kubernetes/client-node').V1Pod): PodNode {
   // Calculate age
   const age = formatAge(pod.metadata?.creationTimestamp);
 
+  // Extract labels
+  const labels = pod.metadata?.labels
+    ? Object.entries(pod.metadata.labels)
+        .map(([k, v]) => `${k}=${v}`)
+        .join(',')
+    : undefined;
+
   // Extract CPU/memory requests and limits from pod spec
   let cpuRequest: number | undefined;
   let cpuLimit: number | undefined;
@@ -272,6 +279,7 @@ function buildPodNode(pod: import('@kubernetes/client-node').V1Pod): PodNode {
     reason,
     ready,
     age,
+    labels,
     metrics: {
       resources: {
         cpuUsage: 0, // Will be updated by attachMetrics
@@ -316,10 +324,18 @@ function buildWorkloadFromDeployment(
     const desiredReplicas = rs.spec?.replicas || 1;
     const ready = `${readyReplicas}/${desiredReplicas}`;
 
+    // Extract selector
+    const selector = rs.spec?.selector?.matchLabels
+      ? Object.entries(rs.spec.selector.matchLabels)
+          .map(([k, v]) => `${k}=${v}`)
+          .join(',')
+      : undefined;
+
     return {
       name: rsName,
       ready,
       pods: rsPods.map((p) => buildPodNode(p)),
+      selector,
     };
   });
 
@@ -328,12 +344,20 @@ function buildWorkloadFromDeployment(
   const ready = `${readyReplicas}/${desiredReplicas}`;
   const image = deployment.spec?.template?.spec?.containers?.[0]?.image || 'unknown';
 
+  // Extract selector
+  const selector = deployment.spec?.selector?.matchLabels
+    ? Object.entries(deployment.spec.selector.matchLabels)
+        .map(([k, v]) => `${k}=${v}`)
+        .join(',')
+    : undefined;
+
   return {
     name: deploymentName,
     kind: 'Deployment',
     ready,
     image,
     replicaSets: replicaSetNodes,
+    selector,
   };
 }
 
@@ -355,12 +379,20 @@ function buildWorkloadFromStatefulSet(
   const ready = `${readyReplicas}/${desiredReplicas}`;
   const image = sts.spec?.template?.spec?.containers?.[0]?.image || 'unknown';
 
+  // Extract selector
+  const selector = sts.spec?.selector?.matchLabels
+    ? Object.entries(sts.spec.selector.matchLabels)
+        .map(([k, v]) => `${k}=${v}`)
+        .join(',')
+    : undefined;
+
   return {
     name: stsName,
     kind: 'StatefulSet',
     ready,
     image,
     pods: stsPods.map((p) => buildPodNode(p)),
+    selector,
   };
 }
 
@@ -382,12 +414,20 @@ function buildWorkloadFromDaemonSet(
   const ready = `${currentNumberScheduled}/${desiredNumberScheduled}`;
   const image = ds.spec?.template?.spec?.containers?.[0]?.image || 'unknown';
 
+  // Extract selector
+  const selector = ds.spec?.selector?.matchLabels
+    ? Object.entries(ds.spec.selector.matchLabels)
+        .map(([k, v]) => `${k}=${v}`)
+        .join(',')
+    : undefined;
+
   return {
     name: dsName,
     kind: 'DaemonSet',
     ready,
     image,
     pods: dsPods.map((p) => buildPodNode(p)),
+    selector,
   };
 }
 
@@ -410,6 +450,13 @@ function buildWorkloadFromJob(
   const total = active + succeeded + failed;
   const ready = `${succeeded}/${total}`;
   const image = job.spec?.template?.spec?.containers?.[0]?.image || 'unknown';
+
+  // Extract selector
+  const selector = job.spec?.selector?.matchLabels
+    ? Object.entries(job.spec.selector.matchLabels)
+        .map(([k, v]) => `${k}=${v}`)
+        .join(',')
+    : undefined;
 
   // Calculate job duration
   let duration: string | undefined;
@@ -442,6 +489,7 @@ function buildWorkloadFromJob(
     image,
     pods: jobPods.map((p) => buildPodNode(p)),
     duration,
+    selector,
   };
 }
 
@@ -465,6 +513,13 @@ function buildWorkloadFromCronJob(
   const ready = `${active} jobs`;
   const image = cj.spec?.jobTemplate?.spec?.template?.spec?.containers?.[0]?.image || 'unknown';
 
+  // Extract selector
+  const selector = cj.spec?.jobTemplate?.spec?.selector?.matchLabels
+    ? Object.entries(cj.spec.jobTemplate.spec.selector.matchLabels)
+        .map(([k, v]) => `${k}=${v}`)
+        .join(',')
+    : undefined;
+
   // Format last schedule time
   const lastScheduleTime = cj.status?.lastScheduleTime
     ? formatAge(cj.status.lastScheduleTime)
@@ -483,6 +538,7 @@ function buildWorkloadFromCronJob(
     pods: cjPods.map((p) => buildPodNode(p)),
     lastScheduleTime,
     nextScheduleTime,
+    selector,
   };
 }
 

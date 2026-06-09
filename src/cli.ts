@@ -60,10 +60,10 @@ async function main() {
     const client = createClient(options.context);
 
     // Build fetch options
-    // Default to current namespace (kubectl behavior)
     // Use -A for all namespaces, -n for specific namespace
+    // If neither specified, let WatchView auto-select first non-default namespace
     const fetchOpts: FetchOptions = {
-      namespace: options.allNamespaces ? undefined : options.namespace || client.currentNamespace,
+      namespace: options.allNamespaces ? undefined : options.namespace,
       allNamespaces: options.allNamespaces,
       selector: options.selector,
       showErrors: options.showErrors,
