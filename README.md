@@ -9,7 +9,7 @@ CLI tool to visualize Kubernetes cluster as an ASCII tree directly in your termi
 - **Real-time Metrics**: Display CPU, memory, and network metrics from metrics-server (graceful degradation if unavailable)
 - **Metrics Toggle Modes**: Cycle through `general`, `bar`, `use`, `use/lim`, `use/req/lim` with `m` key
 - **Bar Chart Mode**: Visual resource usage as progress bars
-- **Selector Toggle**: Show/hide label selectors and pod labels with `s` key
+- **Selector Toggle**: Show/hide label selectors and pod labels with `s` key (displayed in yellow with ▶ symbol)
 - **ASCII Tree Visualization**: Clean, readable tree structure showing namespaces, workloads, replicaSets, pods, services, ingresses, and configmaps
 - **Kubernetes Hierarchy**: Displays proper Deployment → ReplicaSet → Pod structure for Deployments
 - **Inactive Replica Sets**: Old replica sets without pods are dimmed and marked as "(inactive)"

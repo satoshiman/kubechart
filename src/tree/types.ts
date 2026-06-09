@@ -37,6 +37,7 @@ export interface ServiceNode {
   externalIp?: string;
   externalIpPending?: boolean;
   traffic?: ServiceTraffic; // NEW: CONN + RPS
+  selector?: string; // NEW: label selector
 }
 
 export interface IngressNode {

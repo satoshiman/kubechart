@@ -295,6 +295,7 @@ program
 | `h`          | Toggle pod status legend                                                     |
 | `+` / `-`    | Increase/decrease refresh interval (1–60s)                                   |
 | `p`          | Pause/resume countdown timer                                                 |
+| `s`          | Toggle selector display (show/hide label selectors and pod labels)           |
 | `t`          | **NEW** Cycle metrics toggle mode: `use` → `use/lim` → `use/req/lim` → `use` |
 | `b`          | **NEW** Toggle bar chart mode on/off                                         |
 | `?`          | **NEW** Show full help overlay                                               |
@@ -595,9 +596,28 @@ function cpuColor(pct: number): string { ... }
 function memColor(pct: number): string { ... }
 ```
 
-### 8.2 TreeView Updates (`src/render/TreeView.tsx`)
+### 8.2 Selector Styling
 
-Mỗi row component nhận thêm props `metricsMode` và `barMode`:
+Selectors và labels được hiển thị với styling đặc biệt:
+
+- **Color**: Màu vàng dịu `#E6B800` (không phải dimColor)
+- **Symbol**: Prefix `▶` trước mỗi selector/label
+- **Indentation**:
+  - RS selector khi không có pods (inactive): trụt vào thêm 2 ký tự
+  - Service selector: trụt vào thêm 2 ký tự
+  - Workload selector: không có extra indentation
+  - Pod labels: không có extra indentation
+
+Ví dụ:
+
+```
+│   └── ◆ ReplicaSet api-77668c7d6b [0/1] (inactive)
+│        ▶ app=api,pod-template-hash=77668c7d6b
+```
+
+### 8.3 TreeView Updates (`src/render/TreeView.tsx`)
+
+Mỗi row component nhận thêm props `metricsMode`, `barMode`, và `showSelectors`:
 
 ```typescript
 // WorkloadRow — hiển thị aggregatedMetrics ở cuối dòng

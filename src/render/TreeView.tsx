@@ -188,6 +188,7 @@ function NamespaceRow({
             namespace.configMaps.length === 0
           }
           showMetrics={showMetrics}
+          showSelectors={showSelectors}
         />
       ))}
 
@@ -283,7 +284,8 @@ function WorkloadRow({
           <Box>
             <Text color={getColor('tree')}>{prefix}</Text>
             <Text color={getColor('tree')}>{podPrefix}</Text>
-            <Text dimColor> selector: {workload.selector}</Text>
+            <Text dimColor>│ </Text>
+            <Text color="#E6B800">▶ {workload.selector}</Text>
           </Box>
         )}
 
@@ -311,7 +313,13 @@ function WorkloadRow({
                   <Text color={getColor('tree')}>{prefix}</Text>
                   <Text color={getColor('tree')}>{podPrefix}</Text>
                   <Text color={getColor('tree')}>{rsChildPrefix}</Text>
-                  <Text dimColor> selector: {rs.selector}</Text>
+                  {hasPods && <Text dimColor>│ </Text>}
+                  {!hasPods && (
+                    <Box marginLeft={2}>
+                      <Text> </Text>
+                    </Box>
+                  )}
+                  <Text color="#E6B800">▶ {rs.selector}</Text>
                 </Box>
               )}
 
@@ -376,7 +384,7 @@ function WorkloadRow({
         <Box>
           <Text color={getColor('tree')}>{prefix}</Text>
           <Text color={getColor('tree')}>{podPrefix}</Text>
-          <Text dimColor> selector: {workload.selector}</Text>
+          <Text color="#E6B800">▶ {workload.selector}</Text>
         </Box>
       )}
 
@@ -430,6 +438,18 @@ function WorkloadRow({
                   showSelectors={showSelectors}
                 />
               ))}
+              {showSelectors && rs.selector && (
+                <Box>
+                  <Text color={getColor('tree')}>{prefix}</Text>
+                  <Text color={getColor('tree')}>{isLast ? '    ' : '│   '}</Text>
+                  {!hasPods && (
+                    <Box marginLeft={2}>
+                      <Text> </Text>
+                    </Box>
+                  )}
+                  <Text color="#E6B800">▶ {rs.selector}</Text>
+                </Box>
+              )}
             </Box>
           );
         });
@@ -563,7 +583,7 @@ function PodRow({
         <Box>
           <Text color={getColor('tree')}>{prefix}</Text>
           <Text color={getColor('tree')}>{isLast ? '    ' : '│   '}</Text>
-          <Text dimColor> labels: {pod.labels}</Text>
+          <Text color="#E6B800">▶ {pod.labels}</Text>
         </Box>
       )}
     </Box>
@@ -598,42 +618,62 @@ interface ServiceRowProps {
   prefix: string;
   isLast: boolean;
   showMetrics?: boolean;
+  showSelectors?: boolean;
 }
 
-function ServiceRow({ service, prefix, isLast, showMetrics }: ServiceRowProps): React.ReactElement {
+function ServiceRow({
+  service,
+  prefix,
+  isLast,
+  showMetrics,
+  showSelectors,
+}: ServiceRowProps): React.ReactElement {
   const svcPrefix = isLast ? '└──' : '├──';
   const { icon, color } = getServiceIcon(service.type);
 
   return (
-    <Box>
-      <Text color={getColor('tree')}>{prefix}</Text>
-      <Text color={getColor('tree')}>{svcPrefix} SVC </Text>
-      <Text color={color}>{icon} </Text>
-      <Text color={color}>{service.type} </Text>
-      <Text color={getColor('workload')}>{service.name} </Text>
-      {showMetrics ? (
-        <>
-          <Spacer />
-          <Text color={getColor('tree')}>{service.type.padEnd(12)} </Text>
-          <Text color={getColor('tree')}>CONN: {service.traffic?.activeConnections ?? '—'} </Text>
-          <Text color={getColor('tree')}>
-            RPS:{' '}
-            {service.traffic?.requestsPerSec !== undefined
-              ? `${service.traffic.requestsPerSec.toFixed(1)}/s`
-              : '—'}
-          </Text>
-        </>
-      ) : (
-        <>
-          <Text color={getColor('ip')}>{service.clusterIP}</Text>
-          <Text color={getColor('tree')}> {service.ports.join(', ')}</Text>
-          {service.nodePort && <Text color={getColor('tree')}> :{service.nodePort}</Text>}
-          {service.externalIp && <Text color={getColor('tree')}> EXTERNAL-IP: </Text>}
-          {service.externalIp && <Text color={getColor('ip')}>{service.externalIp}</Text>}
-          {service.externalIpPending && (
-            <Text color={getColor('error')}> [EXTERNAL-IP: &lt;pending&gt;]</Text>
-          )}
-        </>
+    <Box flexDirection="column">
+      <Box>
+        <Text color={getColor('tree')}>{prefix}</Text>
+        <Text color={getColor('tree')}>{svcPrefix} SVC </Text>
+        <Text color={color}>{icon} </Text>
+        <Text color={color}>{service.type} </Text>
+        <Text color={getColor('workload')}>{service.name} </Text>
+        {showMetrics ? (
+          <>
+            <Spacer />
+            <Text color={getColor('tree')}>{service.type.padEnd(12)} </Text>
+            <Text color={getColor('tree')}>CONN: {service.traffic?.activeConnections ?? '—'} </Text>
+            <Text color={getColor('tree')}>
+              RPS:{' '}
+              {service.traffic?.requestsPerSec !== undefined
+                ? `${service.traffic.requestsPerSec.toFixed(1)}/s`
+                : '—'}
+            </Text>
+          </>
+        ) : (
+          <>
+            <Text color={getColor('ip')}>{service.clusterIP}</Text>
+            <Text color={getColor('tree')}> {service.ports.join(', ')}</Text>
+            {service.nodePort && <Text color={getColor('tree')}> :{service.nodePort}</Text>}
+            {service.externalIp && <Text color={getColor('tree')}> EXTERNAL-IP: </Text>}
+            {service.externalIp && <Text color={getColor('ip')}>{service.externalIp}</Text>}
+            {service.externalIpPending && (
+              <Text color={getColor('error')}> [EXTERNAL-IP: &lt;pending&gt;]</Text>
+            )}
+          </>
+        )}
+      </Box>
+
+      {showSelectors && service.selector && (
+        <Box>
+          <Text color={getColor('tree')}>{prefix}</Text>
+          <Text color={getColor('tree')}>{isLast ? '    ' : '│   '}</Text>
+          <Box marginLeft={2}>
+            <Text> </Text>
+          </Box>
+          <Text color="#E6B800">▶ {service.selector}</Text>
+        </Box>
       )}
     </Box>
   );

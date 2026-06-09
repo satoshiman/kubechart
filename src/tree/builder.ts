@@ -580,6 +580,13 @@ function buildServiceNode(service: import('@kubernetes/client-node').V1Service):
     }
   }
 
+  // Extract selector
+  const selector = service.spec?.selector
+    ? Object.entries(service.spec.selector)
+        .map(([k, v]) => `${k}=${v}`)
+        .join(',')
+    : undefined;
+
   return {
     name,
     type,
@@ -588,6 +595,7 @@ function buildServiceNode(service: import('@kubernetes/client-node').V1Service):
     nodePort,
     externalIp,
     externalIpPending,
+    selector,
   };
 }
 
