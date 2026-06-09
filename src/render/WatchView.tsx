@@ -27,6 +27,7 @@ export interface WatchOptions {
   metrics?: MetricsMode | boolean;
   bar?: boolean;
   noMetrics?: boolean;
+  version: string;
 }
 
 export function WatchView({ opts }: { opts: WatchOptions }): React.ReactElement {
@@ -40,6 +41,7 @@ export function WatchView({ opts }: { opts: WatchOptions }): React.ReactElement 
   const [currentInterval, setCurrentInterval] = useState(opts.interval);
   const [isPaused, setIsPaused] = useState(false);
   const [allNamespaces, setAllNamespaces] = useState<string[]>([]);
+  const loadingStartTimeRef = useRef<number>(Date.now());
 
   // Default to index 1 (non-default namespace) if no namespace specified
   const [currentNamespace, setCurrentNamespace] = useState<string | string[] | undefined>(
@@ -70,6 +72,7 @@ export function WatchView({ opts }: { opts: WatchOptions }): React.ReactElement 
     try {
       setStatus('fetching');
       setError(undefined);
+
       const fetchOptsWithNs = {
         ...opts.fetchOpts,
         namespace: currentNamespace,
@@ -94,6 +97,12 @@ export function WatchView({ opts }: { opts: WatchOptions }): React.ReactElement 
       if (tree) {
         const newDiff = diffTrees(tree, newTree);
         setDiff(newDiff);
+      }
+
+      // Ensure minimum 2s loading time
+      const elapsed = Date.now() - loadingStartTimeRef.current;
+      if (elapsed < 2000) {
+        await new Promise((resolve) => setTimeout(resolve, 2000 - elapsed));
       }
 
       setTree(newTree);
@@ -121,6 +130,7 @@ export function WatchView({ opts }: { opts: WatchOptions }): React.ReactElement 
   useEffect(() => {
     // If namespace is already specified in opts, fetch tree immediately
     if (opts.fetchOpts.namespace) {
+      loadingStartTimeRef.current = Date.now();
       fetchTreeRef.current();
       return;
     }
@@ -133,6 +143,7 @@ export function WatchView({ opts }: { opts: WatchOptions }): React.ReactElement 
         // Set default namespace to first non-default namespace (index 0 in sorted list)
         const sortedNonSystemNs = sortNamespaces(nsList);
         if (sortedNonSystemNs.length > 0) {
+          loadingStartTimeRef.current = Date.now();
           setCurrentNamespace(sortedNonSystemNs[0]);
         } else {
           // Fallback: no non-default namespaces available
@@ -286,10 +297,19 @@ export function WatchView({ opts }: { opts: WatchOptions }): React.ReactElement 
       );
     }
     return (
-      <Box>
+      <Box flexDirection="column" alignItems="center" paddingTop={10}>
         <Box marginBottom={1}>
-          <Text color="yellow">⠋ Fetching cluster data...</Text>
+          <Text color="cyan">
+            {`██╗░░██╗██╗░░░██╗██████╗░███████╗░█████╗░██╗░░██╗░█████╗░██████╗░████████╗
+██║░██╔╝██║░░░██║██╔══██╗██╔════╝██╔══██╗██║░░██║██╔══██╗██╔══██╗╚══██╔══╝
+█████═╝░██║░░░██║██████╦╝█████╗░░██║░░╚═╝███████║███████║██████╔╝░░░██║░░░
+██╔═██╗░██║░░░██║██╔══██╗██╔══╝░░██║░░██╗██╔══██║██╔══██║██╔══██╗░░░██║░░░
+██║░╚██╗╚██████╔╝██████╦╝███████╗╚█████╔╝██║░░██║██║░░██║██║░░██║░░░██║░░░
+╚═╝░░╚═╝░╚═════╝░╚═════╝░╚══════╝░╚════╝░╚═╝░░╚═╝╚═╝░░╚═╝╚═╝░░╚═╝░░░╚═╝░░░`}
+          </Text>
         </Box>
+        <Text color="yellow">⠋ Fetching cluster data...</Text>
+        <Text color="yellow">KubeChart v{opts.version}</Text>
       </Box>
     );
   }

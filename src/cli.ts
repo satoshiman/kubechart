@@ -129,6 +129,7 @@ async function main() {
           metrics: options.metrics,
           bar: options.bar,
           noMetrics: options.noMetrics,
+          version,
         },
       }),
       { patchConsole: false }
