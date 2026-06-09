@@ -523,6 +523,15 @@ function PodRow({
               {' '}
               {pod.phase}
             </Text>
+            {pod.ports && pod.ports.length > 0 && (
+              <Text
+                backgroundColor={isFlashing ? 'white' : undefined}
+                color={isFlashing ? 'black' : getColor('tree')}
+              >
+                {' '}
+                {pod.ports.join(', ')}
+              </Text>
+            )}
             <Spacer />
             <MetricsCell
               metrics={pod.metrics?.resources}
@@ -553,6 +562,15 @@ function PodRow({
             >
               {pod.ip}
             </Text>
+            {pod.ports && pod.ports.length > 0 && (
+              <Text
+                backgroundColor={isFlashing ? 'white' : undefined}
+                color={isFlashing ? 'black' : getColor('tree')}
+              >
+                {' '}
+                {pod.ports.join(', ')}
+              </Text>
+            )}
             <Text
               backgroundColor={isFlashing ? 'white' : undefined}
               color={isFlashing ? 'black' : getColor('tree')}
@@ -654,8 +672,9 @@ function ServiceRow({
         ) : (
           <>
             <Text color={getColor('ip')}>{service.clusterIP}</Text>
-            <Text color={getColor('tree')}> {service.ports.join(', ')}</Text>
             {service.nodePort && <Text color={getColor('tree')}> :{service.nodePort}</Text>}
+            <Text color={getColor('tree')}> {service.ports.join(', ')}</Text>
+            {service.targetPort && <Text color={getColor('tree')}> →{service.targetPort}</Text>}
             {service.externalIp && <Text color={getColor('tree')}> EXTERNAL-IP: </Text>}
             {service.externalIp && <Text color={getColor('ip')}>{service.externalIp}</Text>}
             {service.externalIpPending && (

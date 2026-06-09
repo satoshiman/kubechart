@@ -244,6 +244,11 @@ function buildPodNode(pod: import('@kubernetes/client-node').V1Pod): PodNode {
         .join(',')
     : undefined;
 
+  // Extract container ports
+  const ports = pod.spec?.containers
+    ?.flatMap((c) => c.ports?.map((p) => `${p.containerPort}/${p.protocol || 'TCP'}`) || [])
+    .filter(Boolean);
+
   // Extract CPU/memory requests and limits from pod spec
   let cpuRequest: number | undefined;
   let cpuLimit: number | undefined;
@@ -280,6 +285,7 @@ function buildPodNode(pod: import('@kubernetes/client-node').V1Pod): PodNode {
     ready,
     age,
     labels,
+    ports,
     metrics: {
       resources: {
         cpuUsage: 0, // Will be updated by attachMetrics
@@ -556,6 +562,17 @@ function buildServiceNode(service: import('@kubernetes/client-node').V1Service):
       return `${port}/${protocol}`;
     }) || [];
 
+  // Extract targetPort from the first port
+  const firstPort = service.spec?.ports?.[0];
+  let targetPort: string | undefined;
+  if (firstPort?.targetPort) {
+    if (typeof firstPort.targetPort === 'number') {
+      targetPort = firstPort.targetPort.toString();
+    } else {
+      targetPort = firstPort.targetPort;
+    }
+  }
+
   // Extract nodePort from the first port if type is NodePort
   const nodePort = type === 'NodePort' ? service.spec?.ports?.[0]?.nodePort : undefined;
 
@@ -593,6 +610,7 @@ function buildServiceNode(service: import('@kubernetes/client-node').V1Service):
     clusterIP,
     ports,
     nodePort,
+    targetPort,
     externalIp,
     externalIpPending,
     selector,

@@ -30,7 +30,7 @@ spec:
         - name: nginx
           image: nginx:alpine
           ports:
-            - containerPort: 80
+            - containerPort: 8080
           resources:
             requests:
               cpu: 5m
@@ -61,7 +61,7 @@ spec:
         - name: nginx
           image: nginx:alpine
           ports:
-            - containerPort: 80
+            - containerPort: 8081
           resources:
             requests:
               cpu: 10m
@@ -163,8 +163,8 @@ spec:
   selector:
     app: test-app
   ports:
-    - port: 80
-      targetPort: 80
+    - port: 8080
+      targetPort: 8080
       protocol: TCP
 
 ---
@@ -179,9 +179,8 @@ spec:
   selector:
     app: test-app
   ports:
-    - port: 80
-      targetPort: 80
-      nodePort: 30080
+    - port: 8080
+      targetPort: 8080
       protocol: TCP
 
 ---
@@ -196,8 +195,8 @@ spec:
   selector:
     app: test-app
   ports:
-    - port: 80
-      targetPort: 80
+    - port: 8082
+      targetPort: 8080
       protocol: TCP
 
 ---
@@ -218,7 +217,7 @@ spec:
               service:
                 name: test-clusterip-svc
                 port:
-                  number: 80
+                  number: 8080
 
 ---
 # Ingress (with TLS) - requires a secret, will show TLS indicator
@@ -242,7 +241,7 @@ spec:
               service:
                 name: test-clusterip-svc
                 port:
-                  number: 80
+                  number: 8080
 
 ---
 # ConfigMap (optional, not displayed in tree but useful for testing)

@@ -26,6 +26,7 @@ export interface PodNode {
   age: string;
   metrics?: PodMetrics; // NEW: optional, absent khi metrics-server không khả dụng
   labels?: string; // NEW: pod labels
+  ports?: string[]; // NEW: container ports
 }
 
 export interface ServiceNode {
@@ -34,6 +35,7 @@ export interface ServiceNode {
   clusterIP: string;
   ports: string[];
   nodePort?: number;
+  targetPort?: string; // NEW: target port
   externalIp?: string;
   externalIpPending?: boolean;
   traffic?: ServiceTraffic; // NEW: CONN + RPS
