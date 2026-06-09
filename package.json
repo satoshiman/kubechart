@@ -1,6 +1,6 @@
 {
   "name": "kubechart",
-  "version": "0.2.15",
+  "version": "0.2.16",
   "type": "module",
   "description": "Visualize Kubernetes cluster as ASCII tree in your terminal",
   "bin": {
