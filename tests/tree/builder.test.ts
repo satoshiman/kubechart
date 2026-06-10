@@ -28,6 +28,7 @@ describe('buildTree', () => {
       daemonSets: [],
       jobs: [],
       cronJobs: [],
+      persistentVolumeClaims: [],
       pods: [],
       services: [],
       ingresses: [],
@@ -86,6 +87,7 @@ describe('buildTree', () => {
       daemonSets: [],
       jobs: [],
       cronJobs: [],
+      persistentVolumeClaims: [],
       pods: [
         asV1Pod({
           metadata: {
@@ -153,6 +155,7 @@ describe('buildTree', () => {
       daemonSets: [],
       jobs: [],
       cronJobs: [],
+      persistentVolumeClaims: [],
       pods: [
         asV1Pod({
           metadata: {
@@ -218,6 +221,7 @@ describe('buildTree', () => {
       ],
       jobs: [],
       cronJobs: [],
+      persistentVolumeClaims: [],
       pods: [
         asV1Pod({
           metadata: {
@@ -282,6 +286,7 @@ describe('buildTree', () => {
         }),
       ],
       cronJobs: [],
+      persistentVolumeClaims: [],
       pods: [
         asV1Pod({
           metadata: {
@@ -348,6 +353,7 @@ describe('buildTree', () => {
           },
         }),
       ],
+      persistentVolumeClaims: [],
       pods: [
         asV1Pod({
           metadata: {
@@ -396,6 +402,7 @@ describe('buildTree', () => {
       daemonSets: [],
       jobs: [],
       cronJobs: [],
+      persistentVolumeClaims: [],
       pods: [],
       services: [
         asV1Service({
@@ -437,6 +444,7 @@ describe('buildTree', () => {
       daemonSets: [],
       jobs: [],
       cronJobs: [],
+      persistentVolumeClaims: [],
       pods: [],
       services: [],
       ingresses: [
@@ -490,6 +498,7 @@ describe('buildTree', () => {
       daemonSets: [],
       jobs: [],
       cronJobs: [],
+      persistentVolumeClaims: [],
       pods: [],
       services: [],
       ingresses: [],
@@ -547,6 +556,7 @@ describe('buildTree', () => {
       daemonSets: [],
       jobs: [],
       cronJobs: [],
+      persistentVolumeClaims: [],
       pods: [
         asV1Pod({
           metadata: {
@@ -619,6 +629,7 @@ describe('buildTree', () => {
       daemonSets: [],
       jobs: [],
       cronJobs: [],
+      persistentVolumeClaims: [],
       pods: [
         asV1Pod({
           metadata: {
@@ -707,6 +718,7 @@ describe('buildTree', () => {
       daemonSets: [],
       jobs: [],
       cronJobs: [],
+      persistentVolumeClaims: [],
       pods: [],
       services: [],
       ingresses: [],
@@ -732,6 +744,7 @@ describe('buildTree', () => {
       daemonSets: [],
       jobs: [],
       cronJobs: [],
+      persistentVolumeClaims: [],
       pods: [asV1Pod({})],
       services: [asV1Service({})],
       ingresses: [asV1Ingress({})],

@@ -56,11 +56,41 @@ export interface ConfigMapNode {
   keys: number;
 }
 
+export type VolumeType =
+  | 'PersistentVolumeClaim'
+  | 'hostPath'
+  | 'emptyDir'
+  | 'ConfigMap'
+  | 'Secret'
+  | 'NFS'
+  | 'CSI'
+  | 'local'
+  | 'projected'
+  | 'downwardAPI'
+  | 'serviceAccountToken'
+  | 'ephemeral'
+  | 'image'
+  | 'gitRepo';
+
+export interface VolumeNode {
+  name: string;
+  type: VolumeType;
+  info: string;
+  mountPath?: string;
+  pvcInfo?: {
+    status?: string;
+    capacity?: string;
+    accessModes?: string;
+    storageClass?: string;
+  };
+}
+
 export interface ReplicaSetNode {
   name: string;
   ready: string;
   pods: PodNode[];
   selector?: string; // NEW: label selector
+  volumes?: VolumeNode[]; // NEW: volumes defined in this ReplicaSet
 }
 
 export interface WorkloadNode {
@@ -75,6 +105,7 @@ export interface WorkloadNode {
   duration?: string;
   aggregatedMetrics?: AggregatedMetrics; // NEW: sum từ tất cả pods con
   selector?: string; // NEW: label selector
+  volumes?: VolumeNode[]; // NEW: volumes defined in this workload (for non-Deployment workloads)
 }
 
 export interface NamespaceNode {

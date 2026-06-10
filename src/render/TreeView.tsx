@@ -6,12 +6,14 @@ import type {
   WorkloadNode,
   PodNode,
   ServiceNode,
+  VolumeNode,
 } from '../tree/types.js';
 import type { MetricsMode } from '../metrics/types.js';
-import { getPodStatusColor, getColor } from './colors.js';
+import { getPodStatusColor, getColor, getVolumeTypeColor } from './colors.js';
 import { isSystemNamespace } from '../k8s/types.js';
 import { MetricsCell } from './MetricsCell.js';
 import { formatCpu, formatMem, calcPercent } from '../metrics/formatter.js';
+import { VOLUME_TYPE_CODES } from '../tree/builder.js';
 
 interface TreeViewProps {
   tree: ClusterTree;
@@ -25,6 +27,7 @@ interface TreeViewProps {
   timeUntilRefresh?: number;
   interval?: number;
   showSelectors?: boolean;
+  showVolumes?: boolean;
 }
 
 export function TreeView({
@@ -39,6 +42,7 @@ export function TreeView({
   timeUntilRefresh = 5,
   interval = 5,
   showSelectors = false,
+  showVolumes = false,
 }: TreeViewProps): React.ReactElement {
   const namespaceList = () => {
     if (namespaces.length === 0) return null;
@@ -91,8 +95,9 @@ export function TreeView({
       {/* Controls */}
       <Text>
         [m]etric: <Text color={getColor('general')}>{displayMode}</Text> [s]elector:{' '}
-        <Text color={showSelectors ? 'green' : 'red'}>{showSelectors ? 'ON' : 'OFF'}</Text> | ↺{' '}
-        {timeUntilRefresh}/{interval}s [-/+] [r]efresh [p]ause [q]uit [?]help
+        <Text color={showSelectors ? 'green' : 'red'}>{showSelectors ? 'ON' : 'OFF'}</Text>{' '}
+        [v]olume: <Text color={showVolumes ? 'green' : 'red'}>{showVolumes ? 'ON' : 'OFF'}</Text> |
+        ↺ {timeUntilRefresh}/{interval}s [-/+] [r]efresh [p]ause [q]uit [?]help
       </Text>
 
       {/* Namespace Selector */}
@@ -109,6 +114,7 @@ export function TreeView({
           barMode={barMode}
           showMetrics={showMetrics}
           showSelectors={showSelectors}
+          showVolumes={showVolumes}
         />
       ))}
     </Box>
@@ -123,6 +129,7 @@ interface NamespaceRowProps {
   barMode?: boolean;
   showMetrics?: boolean;
   showSelectors?: boolean;
+  showVolumes?: boolean;
 }
 
 function NamespaceRow({
@@ -133,6 +140,7 @@ function NamespaceRow({
   barMode,
   showMetrics,
   showSelectors,
+  showVolumes,
 }: NamespaceRowProps): React.ReactElement {
   const prefix = isLast ? '└──' : '├──';
   const childPrefix = isLast ? '    ' : '│   ';
@@ -177,6 +185,7 @@ function NamespaceRow({
           barMode={barMode}
           showMetrics={showMetrics}
           showSelectors={showSelectors}
+          showVolumes={showVolumes}
         />
       ))}
 
@@ -257,6 +266,7 @@ interface WorkloadRowProps {
   barMode?: boolean;
   showMetrics?: boolean;
   showSelectors?: boolean;
+  showVolumes?: boolean;
 }
 
 function WorkloadRow({
@@ -269,6 +279,7 @@ function WorkloadRow({
   barMode,
   showMetrics,
   showSelectors,
+  showVolumes,
 }: WorkloadRowProps): React.ReactElement {
   const wlPrefix = isLast ? '└──' : '├──';
   const podPrefix = isLast ? '    ' : '│   ';
@@ -322,6 +333,7 @@ function WorkloadRow({
           const rsChildPrefix = rsIndex === sortedReplicaSets.length - 1 ? '    ' : '│   ';
           const hasPods = (rs.pods || []).length > 0;
           const isInactive = !hasPods;
+          const hasVolumes = showVolumes && rs.volumes && rs.volumes.length > 0;
 
           return (
             <Box key={rs.name} flexDirection="column">
@@ -341,14 +353,22 @@ function WorkloadRow({
                   <Text color={getColor('tree')}>{prefix}</Text>
                   <Text color={getColor('tree')}>{podPrefix}</Text>
                   <Text color={getColor('tree')}>{rsChildPrefix}</Text>
-                  {hasPods && <Text dimColor>│ </Text>}
-                  {!hasPods && (
+                  {(hasPods || hasVolumes) && <Text dimColor>│ </Text>}
+                  {!hasPods && !hasVolumes && (
                     <Box marginLeft={2}>
                       <Text> </Text>
                     </Box>
                   )}
                   <Text color="#E6B800">▶ {rs.selector}</Text>
                 </Box>
+              )}
+
+              {showVolumes && rs.volumes && rs.volumes.length > 0 && (
+                <VolumeRow
+                  volumes={rs.volumes}
+                  prefix={prefix + podPrefix + rsChildPrefix}
+                  isLast={!hasPods}
+                />
               )}
 
               {rs.pods.map((pod, podIndex) => (
@@ -373,6 +393,9 @@ function WorkloadRow({
   }
 
   // For other workloads, show pods directly
+  const hasVolumes = showVolumes && workload.volumes && workload.volumes.length > 0;
+  const hasPods = (workload.pods || []).length > 0;
+
   return (
     <Box flexDirection="column">
       <Box>
@@ -412,8 +435,18 @@ function WorkloadRow({
         <Box>
           <Text color={getColor('tree')}>{prefix}</Text>
           <Text color={getColor('tree')}>{podPrefix}</Text>
+          {(hasPods || hasVolumes) && <Text dimColor>│ </Text>}
+          {!hasPods && !hasVolumes && (
+            <Box marginLeft={2}>
+              <Text> </Text>
+            </Box>
+          )}
           <Text color="#E6B800">▶ {workload.selector}</Text>
         </Box>
+      )}
+
+      {showVolumes && workload.volumes && workload.volumes.length > 0 && (
+        <VolumeRow volumes={workload.volumes} prefix={prefix + podPrefix} isLast={!hasPods} />
       )}
 
       {(workload.pods || []).map((pod, podIndex) => (
@@ -794,6 +827,56 @@ function ConfigMapRow({ configMap, prefix, isLast }: ConfigMapRowProps): React.R
         {' '}
         {configMap.name} {configMap.keys} keys
       </Text>
+    </Box>
+  );
+}
+
+interface VolumeRowProps {
+  volumes: VolumeNode[];
+  prefix: string;
+  isLast: boolean;
+}
+
+function VolumeRow({ volumes, prefix, isLast }: VolumeRowProps): React.ReactElement {
+  const vPrefix = isLast ? '└──' : '├──';
+  const vChildPrefix = isLast ? '    ' : '│   ';
+
+  return (
+    <Box flexDirection="column">
+      <Box>
+        <Text color={getColor('tree')}>{prefix}</Text>
+        <Text color={getColor('tree')}>{vPrefix} </Text>
+        <Text color={getColor('volume')}>Volumes</Text>
+        <Text color={getColor('workload')}> [{volumes.length}]</Text>
+      </Box>
+      {volumes.map((volume, volIndex) => {
+        const volPrefix = volIndex === volumes.length - 1 ? '└──' : '├──';
+        const typeCode = VOLUME_TYPE_CODES[volume.type] || 'UNK';
+        const typeColor = getVolumeTypeColor(volume.type);
+
+        // Build PVC metadata string
+        let pvcMeta = '';
+        if (volume.pvcInfo) {
+          const parts: string[] = [];
+          if (volume.pvcInfo.status) parts.push(volume.pvcInfo.status);
+          if (volume.pvcInfo.capacity) parts.push(volume.pvcInfo.capacity);
+          if (volume.pvcInfo.storageClass) parts.push(volume.pvcInfo.storageClass);
+          if (parts.length > 0) pvcMeta = ` (${parts.join(', ')})`;
+        }
+
+        return (
+          <Box key={volume.name}>
+            <Text color={getColor('tree')}>{prefix}</Text>
+            <Text color={getColor('tree')}>{vChildPrefix}</Text>
+            <Text color={getColor('tree')}>{volPrefix} </Text>
+            <Text color={typeColor}>{typeCode}</Text>
+            <Text color={getColor('workload')}> {volume.name}</Text>
+            {volume.info && <Text dimColor> {volume.info}</Text>}
+            {pvcMeta && <Text dimColor>{pvcMeta}</Text>}
+            {volume.mountPath && <Text dimColor> @ {volume.mountPath}</Text>}
+          </Box>
+        );
+      })}
     </Box>
   );
 }

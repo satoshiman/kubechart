@@ -281,25 +281,29 @@ program
   .option('--output <format>', 'Output format: json | yaml (requires --out-file)')
   .option('--out-file <path>', 'File path to write output (requires --output)')
   // v2 new flags
-  .option('--metrics <mode>', 'Metrics display mode: use | use/lim | use/req/lim', 'use/lim')
+  .option(
+    '--display-mode <mode>',
+    'Display mode: general | bar | use | use/lim | use/req/lim',
+    'general'
+  )
   .option('--no-metrics', 'Disable metrics display entirely')
-  .option('--bar', 'Display metrics as bar charts instead of numbers')
   .parse(process.argv);
 ```
 
 ### 5.3 Keyboard Controls (Watch Mode)
 
-| Key          | Action                                                                       |
-| ------------ | ---------------------------------------------------------------------------- |
-| `r`          | Refresh immediately                                                          |
-| `q` / Ctrl+C | Quit                                                                         |
-| `h`          | Toggle pod status legend                                                     |
-| `+` / `-`    | Increase/decrease refresh interval (1–60s)                                   |
-| `p`          | Pause/resume countdown timer                                                 |
-| `s`          | Toggle selector display (show/hide label selectors and pod labels)           |
-| `t`          | **NEW** Cycle metrics toggle mode: `use` → `use/lim` → `use/req/lim` → `use` |
-| `b`          | **NEW** Toggle bar chart mode on/off                                         |
-| `?`          | **NEW** Show full help overlay                                               |
+| Key          | Action                                                                            |
+| ------------ | --------------------------------------------------------------------------------- |
+| `r`          | Refresh immediately                                                               |
+| `q` / Ctrl+C | Quit                                                                              |
+| `h`          | Toggle pod status legend                                                          |
+| `+` / `-`    | Increase/decrease refresh interval (1–60s)                                        |
+| `p`          | Pause/resume countdown timer                                                      |
+| `s`          | Toggle selector display (show/hide label selectors and pod labels)                |
+| `v`          | Toggle volume display (show/hide Kubernetes volumes)                              |
+| `m`          | Cycle metrics display mode: `general` → `bar` → `use` → `use/lim` → `use/req/lim` |
+| `g`          | Set metrics display mode to `general`                                             |
+| `?`          | Show full help overlay                                                            |
 
 ### 5.4 Watch Mode Behavior
 
@@ -684,35 +688,42 @@ function ClusterHeader({ tree, ... }) {
 ### 8.3 WatchView State (`src/render/WatchView.tsx`)
 
 ```typescript
-export type MetricsMode = 'use' | 'use/lim' | 'use/req/lim';
-const METRICS_MODE_CYCLE: MetricsMode[] = ['use', 'use/lim', 'use/req/lim'];
+export type DisplayMode = 'general' | 'bar' | 'use' | 'use/lim' | 'use/req/lim';
+const DISPLAY_MODE_CYCLE: DisplayMode[] = ['general', 'bar', 'use', 'use/lim', 'use/req/lim'];
 
 export function WatchView({ opts }: { opts: WatchOptions }) {
   const [tree, setTree] = useState<ClusterTree | null>(null);
   const [diff, setDiff] = useState<DiffResult>({ added: [], removed: [], changed: [] });
   const [status, setStatus] = useState<'fetching' | 'idle'>('fetching');
-  const [metricsMode, setMetricsMode] = useState<MetricsMode>(opts.metrics ?? 'use/lim');
-  const [barMode, setBarMode] = useState<boolean>(opts.bar ?? false);
+  const [displayMode, setDisplayMode] = useState<DisplayMode>(opts.displayMode ?? 'general');
   const [currentInterval, setCurrentInterval] = useState<number>(opts.interval);
   const [isPaused, setIsPaused] = useState<boolean>(false);
   const [showLegend, setShowLegend] = useState<boolean>(false);
+  const [showSelectors, setShowSelectors] = useState<boolean>(false);
+  const [showVolumes, setShowVolumes] = useState<boolean>(true);
+  const [showHelp, setShowHelp] = useState<boolean>(false);
   const flashing = useFlash(diff.changed);
 
   // Keyboard
-  useInput((input) => {
+  useInput((input, key) => {
+    if (!process.stdin.isTTY) return;
+
     if (input === 'r') triggerRefresh();
-    if (input === 'q') process.exit(0);
-    if (input === 'h') setShowLegend(v => !v);
     if (input === 'p') setIsPaused(v => !v);
-    if (input === '+') setCurrentInterval(v => Math.min(v + 1, 60));
-    if (input === '-') setCurrentInterval(v => Math.max(v - 1, 1));
-    // v2 new keys:
-    if (input === 't') setMetricsMode(m => {
-      const idx = METRICS_MODE_CYCLE.indexOf(m);
-      return METRICS_MODE_CYCLE[(idx + 1) % METRICS_MODE_CYCLE.length];
+    if (input === 'h') setShowLegend(v => !v);
+    if (input === '+' || input === '=') setCurrentInterval(v => Math.min(v + 1, 60));
+    if (input === '-' || input === '_') setCurrentInterval(v => Math.max(v - 1, 1));
+    if (input === 'q' || (key.ctrl && input === 'c')) process.exit(0);
+    // Display mode controls:
+    if (input === 'm') setDisplayMode(m => {
+      const idx = DISPLAY_MODE_CYCLE.indexOf(m);
+      return DISPLAY_MODE_CYCLE[(idx + 1) % DISPLAY_MODE_CYCLE.length];
     });
-    if (input === 'b') setBarMode(v => !v);
+    if (input === 'g') setDisplayMode('general');
+    // Toggle controls:
     if (input === '?') setShowHelp(v => !v);
+    if (input === 's') setShowSelectors(v => !v);
+    if (input === 'v') setShowVolumes(v => !v);
   });
 
   // fetch loop: cluster data + metrics in parallel
@@ -734,13 +745,18 @@ export function WatchView({ opts }: { opts: WatchOptions }) {
 
   return (
     <Box flexDirection="column">
-      <TreeView tree={tree} flashing={flashing} metricsMode={metricsMode} barMode={barMode} />
+      <TreeView
+        tree={tree}
+        flashing={flashing}
+        displayMode={displayMode}
+        showSelectors={showSelectors}
+        showVolumes={showVolumes}
+      />
       <StatusBar
         status={status}
         diff={diff}
         interval={currentInterval}
-        metricsMode={metricsMode}
-        barMode={barMode}
+        displayMode={displayMode}
         isPaused={isPaused}
         showLegend={showLegend}
       />
@@ -752,19 +768,27 @@ export function WatchView({ opts }: { opts: WatchOptions }) {
 ### 8.4 StatusBar Updates (`src/render/StatusBar.tsx`)
 
 ```typescript
-// Status bar v2 format:
-// [t]oggle: use/lim  [b]bar-chart  | ↺ 2/5s [-/+] [r]efresh [p]ause [q]uit [?]help
+// Status bar format:
+// [m]etric: general [s]elector: OFF [v]olume: ON | ↺ 3/5s [-/+] [r]efresh [p]ause [q]uit [?]help
 
 interface StatusBarProps {
-  status: 'fetching' | 'idle';
+  status: 'fetching' | 'idle' | 'error';
   diff: DiffResult;
   interval: number;
-  metricsMode: MetricsMode;
-  barMode: boolean;
-  isPaused: boolean;
-  showLegend: boolean;
+  lastUpdated?: Date;
+  tree?: ClusterTree;
+  showLegend?: boolean;
+  isPaused?: boolean;
+  showHelp?: boolean;
+  setShowHelp?: (show: boolean) => void;
 }
 ```
+
+The StatusBar shows:
+
+- Stats line: namespaces, workloads, pods, services, ingresses, configmaps counts
+- Pod status legend (when toggled with `h`)
+- Help overlay (when toggled with `?`)
 
 ### 8.5 Pod Status Symbols
 
@@ -878,7 +902,464 @@ export function attachMetrics(
 
 ---
 
-## 10. Coding Rules
+## 10. Volume Feature
+
+### 10.1 Goal
+
+Render Kubernetes volumes in the tree based on where they are actually defined.
+
+Volumes belong to:
+
+- Pod.spec.volumes
+- ReplicaSet.spec.template.spec.volumes
+- Deployment.spec.template.spec.volumes
+- StatefulSet.spec.template.spec.volumes
+- DaemonSet.spec.template.spec.volumes
+- Job.spec.template.spec.volumes
+- CronJob.spec.jobTemplate.spec.template.spec.volumes
+
+**Do NOT duplicate the same volume under every Pod generated from the same PodTemplate.**
+
+### 10.2 Tree Structure
+
+```
+Deployment
+├── ReplicaSet
+│   ├── Volumes [N]
+│   │   ├── PVC uploads → uploads-pvc (Bound, 10Gi, standard) @ /uploads
+│   │   ├── HP host-data → /data/host (Directory) @ /host-data
+│   │   ├── ED cache → Memory @ /cache
+│   │   ├── CM app-config → app-config (3 keys) @ /config
+│   │   └── SEC app-secret → app-secret (3 keys) @ /secrets
+│   ├── POD ● pod-1
+│   └── POD ● pod-2
+
+StatefulSet
+├── Volumes [N]
+├── POD ● pod-0
+└── POD ● pod-1
+
+DaemonSet
+├── Volumes [N]
+├── POD ● pod-1
+└── POD ● pod-2
+
+Job
+├── Volumes [N]
+└── POD ○ pod-1
+
+CronJob
+├── Job
+│   ├── Volumes [N]
+│   └── POD ○ pod-1
+
+Standalone Pod
+├── Volumes [N]
+└── Containers
+```
+
+### 10.3 Volume Node Format
+
+Unified format for all volume types:
+
+```
+TYPE  name  →  source  (metadata)  @  mountPath
+```
+
+Examples:
+
+```
+PVC  uploads  →  uploads-pvc  (Bound, 10Gi, standard)  @  /uploads
+HP   host-data  →  /data/host  (Directory)  @  /host-data
+ED   cache  →  Memory  @  /cache
+ED   temp  →  tmpfs  (2Gi)  @  /tmp
+CM   app-config  →  app-config  (3 keys)  @  /config
+SEC  app-secret  →  app-secret  (3 keys)  @  /secrets
+PROJ  projected-config  →  4 sources  @  /projected
+DAPI  pod-info  →  labels, annotations  @  /pod-info
+```
+
+### 10.4 Type Codes & Color Coding
+
+| Type                  | Code | Color   | Description                 |
+| --------------------- | ---- | ------- | --------------------------- |
+| PersistentVolumeClaim | PVC  | cyan    | PVC volume                  |
+| hostPath              | HP   | yellow  | Node-dependent, risky       |
+| emptyDir              | ED   | white   | Temporary storage           |
+| ConfigMap             | CM   | blue    | Configuration data          |
+| Secret                | SEC  | red     | Sensitive data              |
+| NFS                   | NFS  | white   | Network file system         |
+| CSI                   | CSI  | white   | CSI driver                  |
+| local                 | LOC  | white   | Local persistent volume     |
+| projected             | PROJ | magenta | Multiple sources            |
+| downwardAPI           | DAPI | white   | Pod metadata                |
+| serviceAccountToken   | SAT  | white   | Service account token       |
+| ephemeral             | EPH  | white   | Ephemeral volume            |
+| image                 | IMG  | white   | Image volume                |
+| gitRepo               | GIT  | white   | Git repository (deprecated) |
+
+### 10.5 Volume Type Details
+
+#### PVC (PersistentVolumeClaim)
+
+- Show: claim name, status, capacity, storageClass
+- Format: `PVC name → claimName (status, capacity, storageClass) @ mountPath`
+- Example: `PVC uploads → uploads-pvc (Bound, 10Gi, standard) @ /uploads`
+
+#### ConfigMap
+
+- Show: ConfigMap name, number of keys
+- Format: `CM name → configMapName (N keys) @ mountPath`
+- Example: `CM app-config → app-config (3 keys) @ /config`
+
+#### Secret
+
+- Show: Secret name, number of keys
+- Format: `SEC name → secretName (N keys) @ mountPath`
+- Example: `SEC app-secret → app-secret (3 keys) @ /secrets`
+
+#### hostPath
+
+- Show: path, type (Directory, File, etc.)
+- Format: `HP name → path (type) @ mountPath`
+- Example: `HP var-log → /var/log (Directory) @ /host/var/log`
+
+#### emptyDir
+
+- Show: medium (Memory) or sizeLimit
+- Format: `ED name → Memory @ mountPath` or `ED name → tmpfs (size) @ mountPath`
+- Example: `ED cache → Memory @ /cache` or `ED temp → tmpfs (2Gi) @ /tmp`
+
+#### projected
+
+- Show: number of sources
+- Format: `PROJ name → N sources @ mountPath`
+- Example: `PROJ projected-config → 4 sources @ /projected`
+
+#### downwardAPI
+
+- Show: field names
+- Format: `DAPI name → field1, field2 @ mountPath`
+- Example: `DAPI pod-info → labels, annotations @ /pod-info`
+
+#### NFS
+
+- Show: server:path
+- Format: `NFS name → server:path @ mountPath`
+- Example: `NFS shared-storage → 10.0.0.5:/export @ /data`
+
+#### CSI
+
+- Show: driver name
+- Format: `CSI name → driver @ mountPath`
+- Example: `CSI gke-disk → pd.csi.storage.gke.io @ /data`
+
+#### local
+
+- Show: path
+- Format: `LOC name → path @ mountPath`
+- Example: `LOC local-data → /mnt/disks/data @ /data`
+
+#### serviceAccountToken
+
+- Show: expiration seconds
+- Format: `SAT name → expiration @ mountPath`
+- Example: `SAT default-token → 3600s @ /var/run/secrets`
+
+#### ephemeral
+
+- Show: storage size
+- Format: `EPH name → size @ mountPath`
+- Example: `EPH scratch → 1Gi @ /scratch`
+
+### 10.6 Data Model Updates
+
+```typescript
+// src/tree/types.ts
+export type VolumeType =
+  | 'PersistentVolumeClaim'
+  | 'hostPath'
+  | 'emptyDir'
+  | 'ConfigMap'
+  | 'Secret'
+  | 'NFS'
+  | 'CSI'
+  | 'local'
+  | 'projected'
+  | 'downwardAPI'
+  | 'serviceAccountToken'
+  | 'ephemeral'
+  | 'image'
+  | 'gitRepo';
+
+export interface VolumeNode {
+  name: string;
+  type: VolumeType;
+  info: string;
+  mountPath?: string;
+  pvcInfo?: {
+    status?: string;
+    capacity?: string;
+    accessModes?: string;
+    storageClass?: string;
+  };
+}
+
+export interface ReplicaSetNode {
+  name: string;
+  ready: string;
+  pods: PodNode[];
+  selector?: string;
+  volumes?: VolumeNode[]; // NEW: volumes defined in this ReplicaSet
+}
+
+export interface WorkloadNode {
+  name: string;
+  kind: ResourceKind;
+  ready: string;
+  image: string;
+  replicaSets?: ReplicaSetNode[];
+  pods?: PodNode[];
+  lastScheduleTime?: string;
+  nextScheduleTime?: string;
+  duration?: string;
+  aggregatedMetrics?: AggregatedMetrics;
+  selector?: string;
+  volumes?: VolumeNode[]; // NEW: volumes defined in this workload (for non-Deployment workloads)
+}
+```
+
+### 10.7 Volume Extraction Logic
+
+```typescript
+// src/tree/builder.ts
+
+// Volume type codes for display
+export const VOLUME_TYPE_CODES: Record<VolumeType, string> = {
+  PersistentVolumeClaim: 'PVC',
+  hostPath: 'HP',
+  emptyDir: 'ED',
+  ConfigMap: 'CM',
+  Secret: 'SEC',
+  NFS: 'NFS',
+  CSI: 'CSI',
+  local: 'LOC',
+  projected: 'PROJ',
+  downwardAPI: 'DAPI',
+  serviceAccountToken: 'SAT',
+  ephemeral: 'EPH',
+  image: 'IMG',
+  gitRepo: 'GIT',
+};
+
+// Volume ordering per vol.md spec
+export const VOLUME_ORDER: VolumeType[] = [
+  'PersistentVolumeClaim',
+  'hostPath',
+  'emptyDir',
+  'ConfigMap',
+  'Secret',
+  'projected',
+  'NFS',
+  'CSI',
+  'local',
+  'downwardAPI',
+  'serviceAccountToken',
+  'ephemeral',
+  'image',
+  'gitRepo',
+];
+
+function buildVolumeNode(
+  volume: V1Volume,
+  configMaps: V1ConfigMap[],
+  secrets: V1Secret[],
+  pvcs: V1PersistentVolumeClaim[]
+): VolumeNode | null {
+  // Extract volume type and info based on volume spec
+  // For PVC: extract metadata from PVC object (status, capacity, storageClass)
+  // For ConfigMap/Secret: count keys
+  // For hostPath: extract path and type
+  // For emptyDir: extract medium and sizeLimit
+  // For projected: count sources
+  // For downwardAPI: extract field names
+}
+
+function buildVolumesFromPodSpec(
+  podSpec: V1PodSpec | undefined,
+  configMaps: V1ConfigMap[],
+  secrets: V1Secret[],
+  pvcs: V1PersistentVolumeClaim[]
+): VolumeNode[] {
+  // Extract volumes from pod spec
+  // Extract mount paths from containers
+  // Sort volumes according to VOLUME_ORDER
+}
+```
+
+### 10.8 PVC Fetching
+
+```typescript
+// src/k8s/fetcher.ts
+// Add PVC fetching to RawClusterData
+export interface RawClusterData {
+  namespaces: V1Namespace[];
+  deployments: V1Deployment[];
+  replicaSets: V1ReplicaSet[];
+  statefulSets: V1StatefulSet[];
+  daemonSets: V1DaemonSet[];
+  jobs: V1Job[];
+  cronJobs: V1CronJob[];
+  pods: V1Pod[];
+  services: V1Service[];
+  ingresses: V1Ingress[];
+  configMaps: V1ConfigMap[];
+  secrets: V1Secret[];
+  persistentVolumeClaims: V1PersistentVolumeClaim[]; // NEW
+  serverVersion?: string;
+  nodeCount?: number;
+}
+
+async function fetchPersistentVolumeClaims(
+  core: CoreV1Api,
+  ns: string
+): Promise<V1PersistentVolumeClaim[]> {
+  try {
+    const res = await core.listNamespacedPersistentVolumeClaim(ns);
+    return res.body.items;
+  } catch (error) {
+    return [];
+  }
+}
+```
+
+### 10.9 Volume Rendering
+
+```typescript
+// src/render/TreeView.tsx
+
+function VolumeRow({ volumes, prefix, isLast }: VolumeRowProps) {
+  const vPrefix = isLast ? '└──' : '├──';
+  const vChildPrefix = isLast ? '    ' : '│  ';
+
+  return (
+    <Box flexDirection="column">
+      <Box>
+        <Text color={getColor('tree')}>{prefix}</Text>
+        <Text color={getColor('tree')}>{vPrefix} </Text>
+        <Text color={getColor('volume')}>Volumes</Text>
+        <Text color={getColor('workload')}> [{volumes.length}]</Text>
+      </Box>
+      {volumes.map((volume, volIndex) => {
+        const volPrefix = volIndex === volumes.length - 1 ? '└──' : '├──';
+        const typeCode = VOLUME_TYPE_CODES[volume.type] || 'UNK';
+        const typeColor = getVolumeTypeColor(volume.type);
+
+        // Build PVC metadata string
+        let pvcMeta = '';
+        if (volume.pvcInfo) {
+          const parts: string[] = [];
+          if (volume.pvcInfo.status) parts.push(volume.pvcInfo.status);
+          if (volume.pvcInfo.capacity) parts.push(volume.pvcInfo.capacity);
+          if (volume.pvcInfo.storageClass) parts.push(volume.pvcInfo.storageClass);
+          if (parts.length > 0) pvcMeta = ` (${parts.join(', ')})`;
+        }
+
+        return (
+          <Box key={volume.name}>
+            <Text color={getColor('tree')}>{prefix}</Text>
+            <Text color={getColor('tree')}>{vChildPrefix}</Text>
+            <Text color={getColor('tree')}>{volPrefix} </Text>
+            <Text color={typeColor}>{typeCode}</Text>
+            <Text color={getColor('workload')}> {volume.name}</Text>
+            {volume.info && <Text dimColor> {volume.info}</Text>}
+            {pvcMeta && <Text dimColor>{pvcMeta}</Text>}
+            {volume.mountPath && <Text dimColor> @ {volume.mountPath}</Text>}
+          </Box>
+        );
+      })}
+    </Box>
+  );
+}
+
+// src/render/colors.ts
+export function getVolumeTypeColor(volumeType: string): string {
+  switch (volumeType) {
+    case 'PersistentVolumeClaim': return colors.volumePVC; // cyan
+    case 'hostPath': return colors.volumeHP; // yellow
+    case 'emptyDir': return colors.volumeED; // white
+    case 'ConfigMap': return colors.volumeCM; // blue
+    case 'Secret': return colors.volumeSEC; // red
+    case 'projected': return colors.volumePROJ; // magenta
+    case 'downwardAPI': return colors.volumeDAPI; // white
+    default: return colors.volume;
+  }
+}
+```
+
+### 10.10 Volume Toggle Control
+
+```typescript
+// src/render/WatchView.tsx
+
+export function WatchView({ opts }: { opts: WatchOptions }) {
+  const [showVolumes, setShowVolumes] = useState<boolean>(true);
+
+  useInput((input) => {
+    // ... other handlers
+    if (input === 'v') setShowVolumes(v => !v);
+  });
+
+  return (
+    <TreeView tree={tree} showVolumes={showVolumes} />
+  );
+}
+
+// Menu display: [v]olume: ON/OFF
+```
+
+### 10.11 Important UX Rules
+
+1. **Render ONLY volumes actually present** - Do not create placeholder nodes for unsupported or missing volume types.
+
+2. **Never duplicate identical Volumes under every Pod** - Render once at the PodTemplate owner level (ReplicaSet for Deployments, Workload for others).
+
+3. **Standalone Pods** (ownerReferences empty) should render their own "Volumes" node.
+
+4. **Volume ordering** - Follow VOLUME_ORDER: PVC → HP → ED → CM → SEC → PROJ → NFS → CSI → LOC → DAPI → SAT → EPH → IMG → GIT.
+
+5. **If no volumes exist** - Omit the "Volumes" node entirely.
+
+6. **Mount path extraction** - Extract mount paths from all containers in the pod spec.
+
+7. **PVC metadata** - Fetch PVCs from cluster and extract status, capacity, storageClass for display.
+
+### 10.12 Test YAML
+
+Test cases are in `yml-test/vol-test.yaml`:
+
+- Namespace: vol-test
+- ConfigMap: app-config (3 keys)
+- Secret: app-secret (3 keys)
+- PVC: uploads-pvc (10Gi)
+- Deployment: 8 volumes (PVC, HP, ED, CM, SEC, PROJ, DAPI)
+- StatefulSet: 3 volumes (ED, CM, SEC)
+- DaemonSet: 3 volumes (HP, ED, CM)
+- Job: 3 volumes (ED, CM, SEC)
+- CronJob: 3 volumes (ED, CM, SEC)
+- Pod: ephemeral volume, ConfigMap
+
+Apply test:
+
+```bash
+kubectl apply -f yml-test/vol-test.yaml
+kubechart -n vol-test
+# Press 'v' to toggle volume display
+```
+
+---
+
+## 11. Coding Rules
 
 ### TypeScript
 

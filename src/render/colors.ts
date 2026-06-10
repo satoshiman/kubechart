@@ -29,6 +29,16 @@ export const colors = {
   workload: '#d946ef', // magenta
   ingress: '#ec4899', // pink
   configMap: '#f97316', // orange
+  volume: '#14b8a6', // teal
+
+  // Volume type colors
+  volumePVC: '#06b6d4', // cyan
+  volumeHP: '#eab308', // yellow
+  volumeED: '#ffffff', // white
+  volumeCM: '#3b82f6', // blue
+  volumeSEC: '#ef4444', // red
+  volumePROJ: '#d946ef', // magenta
+  volumeDAPI: '#ffffff', // white
 
   // UI colors
   header: '#06b6d4', // cyan
@@ -74,4 +84,26 @@ export function getPodStatusColor(phase: string, ready?: string): string {
 export function getColor(colorName: keyof typeof colors): string {
   if (!useColors) return '';
   return colors[colorName];
+}
+
+export function getVolumeTypeColor(volumeType: string): string {
+  if (!useColors) return '';
+  switch (volumeType) {
+    case 'PersistentVolumeClaim':
+      return colors.volumePVC;
+    case 'hostPath':
+      return colors.volumeHP;
+    case 'emptyDir':
+      return colors.volumeED;
+    case 'ConfigMap':
+      return colors.volumeCM;
+    case 'Secret':
+      return colors.volumeSEC;
+    case 'projected':
+      return colors.volumePROJ;
+    case 'downwardAPI':
+      return colors.volumeDAPI;
+    default:
+      return colors.volume;
+  }
 }

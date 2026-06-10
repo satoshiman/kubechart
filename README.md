@@ -22,7 +22,8 @@ CLI tool to visualize Kubernetes cluster as an ASCII tree directly in your termi
 - **Metrics Toggle Modes**: Cycle through `general`, `bar`, `use`, `use/lim`, `use/req/lim` with `m` key
 - **Bar Chart Mode**: Visual resource usage as progress bars
 - **Selector Toggle**: Show/hide label selectors and pod labels with `s` key (displayed in yellow with ▶ symbol)
-- **ASCII Tree Visualization**: Clean, readable tree structure showing namespaces, workloads, replicaSets, pods, services, ingresses, and configmaps
+- **Volume Toggle**: Show/hide Kubernetes volumes with `v` key, including PVC metadata (status, capacity, storageClass)
+- **ASCII Tree Visualization**: Clean, readable tree structure showing namespaces, workloads, replicaSets, pods, services, ingresses, configmaps, and volumes
 - **Kubernetes Hierarchy**: Displays proper Deployment → ReplicaSet → Pod structure for Deployments
 - **Inactive Replica Sets**: Old replica sets without pods are dimmed and marked as "(inactive)"
 - **CronJob Integration**: Jobs owned by CronJobs are nested under their parent CronJob to avoid duplication
@@ -80,7 +81,9 @@ kubechart --interval 10
 # - +/=: increase refresh interval (max 60s)
 # - -/_: decrease refresh interval (min 1s)
 # - m: cycle metrics mode (general → bar → use → use/lim → use/req/lim)
+# - g: set metrics mode to general
 # - s: toggle selector display (show/hide label selectors and pod labels)
+# - v: toggle volume display (show/hide Kubernetes volumes)
 # - ?: show help overlay
 ```
 

@@ -97,6 +97,7 @@ export function StatusBar({
           [m] Cycle display mode: general → bar → use → use/lim → use/req/lim
         </Text>
         <Text color={getColor('tree')}> [s] Toggle selector display</Text>
+        <Text color={getColor('tree')}> [v] Toggle volume display</Text>
         <Text color={getColor('tree')}> [?] Show/hide this help</Text>
         <Text color={getColor('tree')}> [q] Quit</Text>
         <Text color={getColor('tree')}> [0-9] Switch namespace</Text>

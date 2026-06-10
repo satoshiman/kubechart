@@ -41,6 +41,7 @@ export async function fetchClusterData(
     const ingresses: k8s.V1Ingress[] = [];
     const configMaps: k8s.V1ConfigMap[] = [];
     const secrets: k8s.V1Secret[] = [];
+    const persistentVolumeClaims: k8s.V1PersistentVolumeClaim[] = [];
 
     for (const ns of namespaces) {
       const nsName = ns.metadata?.name;
@@ -58,6 +59,7 @@ export async function fetchClusterData(
         nsIngresses,
         nsConfigMaps,
         nsSecrets,
+        nsPVCs,
       ] = await Promise.all([
         fetchDeployments(client.apps, nsName),
         fetchReplicaSets(client.apps, nsName),
@@ -70,6 +72,7 @@ export async function fetchClusterData(
         fetchIngresses(client.networking, nsName),
         fetchConfigMaps(client.core, nsName),
         fetchSecrets(client.core, nsName),
+        fetchPersistentVolumeClaims(client.core, nsName),
       ]);
 
       deployments.push(...nsDeployments);
@@ -83,6 +86,7 @@ export async function fetchClusterData(
       ingresses.push(...nsIngresses);
       configMaps.push(...nsConfigMaps);
       secrets.push(...nsSecrets);
+      persistentVolumeClaims.push(...nsPVCs);
     }
 
     return {
@@ -98,6 +102,7 @@ export async function fetchClusterData(
       ingresses,
       configMaps,
       secrets,
+      persistentVolumeClaims,
       serverVersion,
       nodeCount,
     };
@@ -257,6 +262,18 @@ async function fetchConfigMaps(core: k8s.CoreV1Api, ns: string): Promise<k8s.V1C
 async function fetchSecrets(core: k8s.CoreV1Api, ns: string): Promise<k8s.V1Secret[]> {
   try {
     const res = await core.listNamespacedSecret(ns);
+    return res.body.items;
+  } catch (error) {
+    return [];
+  }
+}
+
+async function fetchPersistentVolumeClaims(
+  core: k8s.CoreV1Api,
+  ns: string
+): Promise<k8s.V1PersistentVolumeClaim[]> {
+  try {
+    const res = await core.listNamespacedPersistentVolumeClaim(ns);
     return res.body.items;
   } catch (error) {
     return [];

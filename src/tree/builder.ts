@@ -9,6 +9,8 @@ import type {
   IngressNode,
   ReplicaSetNode,
   ConfigMapNode,
+  VolumeNode,
+  VolumeType,
 } from './types.js';
 import { parseCpuQuantity, parseMemQuantity } from '../k8s/metrics.js';
 
@@ -57,6 +59,9 @@ export function buildTree(
       const nsSecrets = (raw.secrets || []).filter(
         (s: { metadata?: { namespace?: string } }) => s.metadata?.namespace === nsName
       );
+      const nsPVCs = (raw.persistentVolumeClaims || []).filter(
+        (p: { metadata?: { namespace?: string } }) => p.metadata?.namespace === nsName
+      );
 
       // Build workload nodes from all resource types
       // Filter out jobs that are owned by CronJobs to avoid duplication
@@ -66,11 +71,21 @@ export function buildTree(
       });
 
       const workloads: WorkloadNode[] = [
-        ...nsDeployments.map((d) => buildWorkloadFromDeployment(d, nsReplicaSets, raw.pods)),
-        ...nsStatefulSets.map((s) => buildWorkloadFromStatefulSet(s, raw.pods)),
-        ...nsDaemonSets.map((d) => buildWorkloadFromDaemonSet(d, raw.pods)),
-        ...standaloneJobs.map((j) => buildWorkloadFromJob(j, raw.pods)),
-        ...nsCronJobs.map((c) => buildWorkloadFromCronJob(c, raw.pods)),
+        ...nsDeployments.map((d) =>
+          buildWorkloadFromDeployment(d, nsReplicaSets, raw.pods, nsConfigMaps, nsSecrets, nsPVCs)
+        ),
+        ...nsStatefulSets.map((s) =>
+          buildWorkloadFromStatefulSet(s, raw.pods, nsConfigMaps, nsSecrets, nsPVCs)
+        ),
+        ...nsDaemonSets.map((d) =>
+          buildWorkloadFromDaemonSet(d, raw.pods, nsConfigMaps, nsSecrets, nsPVCs)
+        ),
+        ...standaloneJobs.map((j) =>
+          buildWorkloadFromJob(j, raw.pods, nsConfigMaps, nsSecrets, nsPVCs)
+        ),
+        ...nsCronJobs.map((c) =>
+          buildWorkloadFromCronJob(c, raw.pods, nsConfigMaps, nsSecrets, nsPVCs)
+        ),
       ];
 
       // Find orphan pods (pods not owned by any workload in this namespace)
@@ -310,7 +325,10 @@ function buildPodNode(pod: import('@kubernetes/client-node').V1Pod): PodNode {
 function buildWorkloadFromDeployment(
   deployment: import('@kubernetes/client-node').V1Deployment,
   replicaSets: import('@kubernetes/client-node').V1ReplicaSet[],
-  allPods: import('@kubernetes/client-node').V1Pod[]
+  allPods: import('@kubernetes/client-node').V1Pod[],
+  configMaps: import('@kubernetes/client-node').V1ConfigMap[],
+  secrets: import('@kubernetes/client-node').V1Secret[],
+  pvcs: import('@kubernetes/client-node').V1PersistentVolumeClaim[]
 ): WorkloadNode {
   const deploymentName = deployment.metadata?.name || 'unknown';
 
@@ -345,11 +363,15 @@ function buildWorkloadFromDeployment(
           .join(',')
       : undefined;
 
+    // Extract volumes from ReplicaSet's pod template
+    const volumes = buildVolumesFromPodSpec(rs.spec?.template?.spec, configMaps, secrets, pvcs);
+
     return {
       name: rsName,
       ready,
       pods: rsPods.map((p) => buildPodNode(p)),
       selector,
+      volumes,
     };
   });
 
@@ -377,7 +399,10 @@ function buildWorkloadFromDeployment(
 
 function buildWorkloadFromStatefulSet(
   sts: import('@kubernetes/client-node').V1StatefulSet,
-  allPods: import('@kubernetes/client-node').V1Pod[]
+  allPods: import('@kubernetes/client-node').V1Pod[],
+  configMaps: import('@kubernetes/client-node').V1ConfigMap[],
+  secrets: import('@kubernetes/client-node').V1Secret[],
+  pvcs: import('@kubernetes/client-node').V1PersistentVolumeClaim[]
 ): WorkloadNode {
   const stsName = sts.metadata?.name || 'unknown';
 
@@ -400,6 +425,9 @@ function buildWorkloadFromStatefulSet(
         .join(',')
     : undefined;
 
+  // Extract volumes from StatefulSet's pod template
+  const volumes = buildVolumesFromPodSpec(sts.spec?.template?.spec, configMaps, secrets, pvcs);
+
   return {
     name: stsName,
     kind: 'StatefulSet',
@@ -407,12 +435,16 @@ function buildWorkloadFromStatefulSet(
     image,
     pods: stsPods.map((p) => buildPodNode(p)),
     selector,
+    volumes,
   };
 }
 
 function buildWorkloadFromDaemonSet(
   ds: import('@kubernetes/client-node').V1DaemonSet,
-  allPods: import('@kubernetes/client-node').V1Pod[]
+  allPods: import('@kubernetes/client-node').V1Pod[],
+  configMaps: import('@kubernetes/client-node').V1ConfigMap[],
+  secrets: import('@kubernetes/client-node').V1Secret[],
+  pvcs: import('@kubernetes/client-node').V1PersistentVolumeClaim[]
 ): WorkloadNode {
   const dsName = ds.metadata?.name || 'unknown';
 
@@ -435,6 +467,9 @@ function buildWorkloadFromDaemonSet(
         .join(',')
     : undefined;
 
+  // Extract volumes from DaemonSet's pod template
+  const volumes = buildVolumesFromPodSpec(ds.spec?.template?.spec, configMaps, secrets, pvcs);
+
   return {
     name: dsName,
     kind: 'DaemonSet',
@@ -442,12 +477,16 @@ function buildWorkloadFromDaemonSet(
     image,
     pods: dsPods.map((p) => buildPodNode(p)),
     selector,
+    volumes,
   };
 }
 
 function buildWorkloadFromJob(
   job: import('@kubernetes/client-node').V1Job,
-  allPods: import('@kubernetes/client-node').V1Pod[]
+  allPods: import('@kubernetes/client-node').V1Pod[],
+  configMaps: import('@kubernetes/client-node').V1ConfigMap[],
+  secrets: import('@kubernetes/client-node').V1Secret[],
+  pvcs: import('@kubernetes/client-node').V1PersistentVolumeClaim[]
 ): WorkloadNode {
   const jobName = job.metadata?.name || 'unknown';
 
@@ -496,6 +535,9 @@ function buildWorkloadFromJob(
     }
   }
 
+  // Extract volumes from Job's pod template
+  const volumes = buildVolumesFromPodSpec(job.spec?.template?.spec, configMaps, secrets, pvcs);
+
   return {
     name: jobName,
     kind: 'Job',
@@ -504,12 +546,16 @@ function buildWorkloadFromJob(
     pods: jobPods.map((p) => buildPodNode(p)),
     duration,
     selector,
+    volumes,
   };
 }
 
 function buildWorkloadFromCronJob(
   cj: import('@kubernetes/client-node').V1CronJob,
-  allPods: import('@kubernetes/client-node').V1Pod[]
+  allPods: import('@kubernetes/client-node').V1Pod[],
+  configMaps: import('@kubernetes/client-node').V1ConfigMap[],
+  secrets: import('@kubernetes/client-node').V1Secret[],
+  pvcs: import('@kubernetes/client-node').V1PersistentVolumeClaim[]
 ): WorkloadNode {
   const cjName = cj.metadata?.name || 'unknown';
 
@@ -544,6 +590,14 @@ function buildWorkloadFromCronJob(
     ? calculateNextSchedule(cj.spec.schedule, cj.status?.lastScheduleTime)
     : undefined;
 
+  // Extract volumes from CronJob's job template
+  const volumes = buildVolumesFromPodSpec(
+    cj.spec?.jobTemplate?.spec?.template?.spec,
+    configMaps,
+    secrets,
+    pvcs
+  );
+
   return {
     name: cjName,
     kind: 'CronJob',
@@ -553,6 +607,7 @@ function buildWorkloadFromCronJob(
     lastScheduleTime,
     nextScheduleTime,
     selector,
+    volumes,
   };
 }
 
@@ -679,4 +734,222 @@ function buildConfigMapNode(
     name,
     keys,
   };
+}
+
+// Volume type icon mapping (exported for TreeView)
+export const VOLUME_ICONS: Record<VolumeType, string> = {
+  PersistentVolumeClaim: '📀',
+  hostPath: '📁',
+  emptyDir: '📦',
+  ConfigMap: '⚙️',
+  Secret: '🔑',
+  NFS: '🌐',
+  CSI: '💿',
+  local: '📂',
+  projected: '🧩',
+  downwardAPI: '📉',
+  serviceAccountToken: '🎫',
+  ephemeral: '🗃️',
+  image: '🖼',
+  gitRepo: '📜',
+};
+
+// Volume type short codes (exported for TreeView)
+export const VOLUME_TYPE_CODES: Record<VolumeType, string> = {
+  PersistentVolumeClaim: 'PVC',
+  hostPath: 'HP',
+  emptyDir: 'ED',
+  ConfigMap: 'CM',
+  Secret: 'SEC',
+  NFS: 'NFS',
+  CSI: 'CSI',
+  local: 'LOC',
+  projected: 'PROJ',
+  downwardAPI: 'DAPI',
+  serviceAccountToken: 'SAT',
+  ephemeral: 'EPH',
+  image: 'IMG',
+  gitRepo: 'GIT',
+};
+
+// Volume ordering according to vol.md
+const VOLUME_ORDER: VolumeType[] = [
+  'PersistentVolumeClaim',
+  'hostPath',
+  'emptyDir',
+  'ConfigMap',
+  'Secret',
+  'projected',
+  'NFS',
+  'CSI',
+  'local',
+  'downwardAPI',
+  'serviceAccountToken',
+  'ephemeral',
+  'image',
+  'gitRepo',
+];
+
+function buildVolumeNode(
+  volume: import('@kubernetes/client-node').V1Volume,
+  configMaps: import('@kubernetes/client-node').V1ConfigMap[],
+  secrets: import('@kubernetes/client-node').V1Secret[],
+  pvcs: import('@kubernetes/client-node').V1PersistentVolumeClaim[]
+): VolumeNode | null {
+  const name = volume.name || 'unknown';
+  let type: VolumeType | null = null;
+  let info = '';
+
+  if (volume.persistentVolumeClaim) {
+    type = 'PersistentVolumeClaim';
+    const claimName = volume.persistentVolumeClaim.claimName || '';
+    info = `→ ${claimName}`;
+    // Extract PVC metadata
+    const pvc = pvcs.find((p) => p.metadata?.name === claimName);
+    if (pvc) {
+      const status = pvc.status?.phase || '';
+      const capacity = pvc.status?.capacity?.storage || '';
+      const accessModes = pvc.spec?.accessModes?.join(',') || '';
+      const storageClass = pvc.spec?.storageClassName || '';
+      return {
+        name,
+        type,
+        info,
+        pvcInfo: {
+          status,
+          capacity,
+          accessModes,
+          storageClass,
+        },
+      };
+    }
+  } else if (volume.hostPath) {
+    type = 'hostPath';
+    const path = volume.hostPath.path || '';
+    const hostPathType = volume.hostPath.type;
+    info = `→ ${path}`;
+    if (hostPathType) {
+      info += ` (${hostPathType})`;
+    }
+  } else if (volume.emptyDir) {
+    type = 'emptyDir';
+    const medium = volume.emptyDir.medium;
+    const sizeLimit = volume.emptyDir.sizeLimit;
+    if (medium === 'Memory') {
+      info = '→ Memory';
+    } else if (sizeLimit) {
+      info = `→ tmpfs (${sizeLimit})`;
+    } else {
+      info = '→ tmpfs';
+    }
+  } else if (volume.configMap) {
+    type = 'ConfigMap';
+    const cmName = volume.configMap.name || '';
+    const cm = configMaps.find((c) => c.metadata?.name === cmName);
+    const keys = cm ? Object.keys(cm.data || {}).length : 0;
+    info = `→ ${cmName} (${keys} keys)`;
+  } else if (volume.secret) {
+    type = 'Secret';
+    const secretName = volume.secret.secretName || '';
+    const secret = secrets.find((s) => s.metadata?.name === secretName);
+    const keys = secret ? Object.keys(secret.data || {}).length : 0;
+    info = `→ ${secretName} (${keys} keys)`;
+  } else if (volume.nfs) {
+    type = 'NFS';
+    const server = volume.nfs.server || '';
+    const path = volume.nfs.path || '';
+    info = `→ ${server}:${path}`;
+  } else if (volume.csi) {
+    type = 'CSI';
+    const driver = volume.csi.driver || '';
+    info = `→ ${driver}`;
+  } else if (volume.projected) {
+    type = 'projected';
+    const sources = volume.projected.sources || [];
+    info = `→ ${sources.length} sources`;
+  } else if (volume.downwardAPI) {
+    type = 'downwardAPI';
+    const items = volume.downwardAPI.items || [];
+    const fields = items.map((item) => item.path).join(', ');
+    info = fields ? `→ ${fields}` : '';
+  } else if (volume.ephemeral) {
+    type = 'ephemeral';
+    const volumeClaimTemplate = volume.ephemeral.volumeClaimTemplate;
+    if (volumeClaimTemplate?.spec?.resources?.requests?.storage) {
+      info = `→ ${volumeClaimTemplate.spec.resources.requests.storage}`;
+    } else {
+      info = '→ ephemeral';
+    }
+  } else {
+    // Handle volume types not in standard V1Volume type
+    const vol = volume as unknown as Record<string, unknown>;
+    if (vol.local) {
+      type = 'local';
+      const path = (vol.local as { path?: string })?.path || '';
+      info = `→ ${path}`;
+    } else if (vol.serviceAccountToken) {
+      type = 'serviceAccountToken';
+      const expirationSeconds = (vol.serviceAccountToken as { expirationSeconds?: number })
+        ?.expirationSeconds;
+      info = expirationSeconds ? `→ ${expirationSeconds}s` : '→ token';
+    } else if (vol.image) {
+      type = 'image';
+      info = '→ image';
+    } else if (vol.gitRepo) {
+      type = 'gitRepo';
+      const repository = (vol.gitRepo as { repository?: string })?.repository || '';
+      info = `→ ${repository}`;
+    }
+  }
+
+  if (!type) {
+    return null; // Skip unsupported volume types
+  }
+
+  return {
+    name,
+    type,
+    info,
+  };
+}
+
+function buildVolumesFromPodSpec(
+  podSpec: import('@kubernetes/client-node').V1PodSpec | undefined,
+  configMaps: import('@kubernetes/client-node').V1ConfigMap[],
+  secrets: import('@kubernetes/client-node').V1Secret[],
+  pvcs: import('@kubernetes/client-node').V1PersistentVolumeClaim[]
+): VolumeNode[] {
+  if (!podSpec?.volumes || podSpec.volumes.length === 0) {
+    return [];
+  }
+
+  // Build a map of volume name to mount paths from all containers
+  const volumeMountPaths = new Map<string, string>();
+  for (const container of podSpec.containers || []) {
+    const mounts = container.volumeMounts || [];
+    for (const mount of mounts) {
+      if (mount.name && mount.mountPath) {
+        volumeMountPaths.set(mount.name, mount.mountPath);
+      }
+    }
+  }
+
+  const volumes: VolumeNode[] = [];
+  for (const volume of podSpec.volumes) {
+    const volumeNode = buildVolumeNode(volume, configMaps, secrets, pvcs);
+    if (volumeNode) {
+      // Add mount path if available
+      volumeNode.mountPath = volumeMountPaths.get(volume.name);
+      volumes.push(volumeNode);
+    }
+  }
+
+  // Sort volumes according to vol.md ordering
+  volumes.sort((a, b) => {
+    const orderA = VOLUME_ORDER.indexOf(a.type);
+    const orderB = VOLUME_ORDER.indexOf(b.type);
+    return orderA - orderB;
+  });
+
+  return volumes;
 }

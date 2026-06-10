@@ -50,6 +50,7 @@ export function WatchView({ opts }: { opts: WatchOptions }): React.ReactElement 
   const [showLegend, setShowLegend] = useState(false);
   const [showHelp, setShowHelp] = useState(false);
   const [showSelectors, setShowSelectors] = useState(false);
+  const [showVolumes, setShowVolumes] = useState(false);
   const [displayMode, setDisplayMode] = useState<DisplayMode>(() => {
     if (!opts.metrics) return 'general';
     if (opts.bar) return 'bar';
@@ -240,6 +241,9 @@ export function WatchView({ opts }: { opts: WatchOptions }): React.ReactElement 
     if (input === 's') {
       setShowSelectors((v) => !v);
     }
+    if (input === 'v') {
+      setShowVolumes((v) => !v);
+    }
 
     // Namespace switching with number keys
     if (allNamespaces.length > 0) {
@@ -357,6 +361,7 @@ export function WatchView({ opts }: { opts: WatchOptions }): React.ReactElement 
         timeUntilRefresh={timeUntilRefresh}
         interval={currentInterval}
         showSelectors={showSelectors}
+        showVolumes={showVolumes}
       />
       <StatusBar
         status={status}

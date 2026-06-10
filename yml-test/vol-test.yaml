@@ -1,0 +1,391 @@
+# Test YAML for volume feature
+# Creates namespace vol-test with various volume types across different workloads
+
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: vol-test
+
+---
+# ConfigMap for testing
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: app-config
+  namespace: vol-test
+data:
+  config.yaml: |
+    key1: value1
+    key2: value2
+  app.properties: |
+    debug=true
+    port=8080
+  another.conf: |
+    setting=a
+    setting=b
+
+---
+# Secret for testing
+apiVersion: v1
+kind: Secret
+metadata:
+  name: app-secret
+  namespace: vol-test
+type: Opaque
+data:
+  username: YWRtaW4=
+  password: cGFzc3dvcmQ=
+  api-key: bXlLZXkxMjM=
+
+---
+# PersistentVolumeClaim for testing
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: uploads-pvc
+  namespace: vol-test
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 10Gi
+
+---
+# Deployment with multiple volume types
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: md-host
+  namespace: vol-test
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: md-host
+  template:
+    metadata:
+      labels:
+        app: md-host
+    spec:
+      volumes:
+        # PersistentVolumeClaim
+        - name: uploads
+          persistentVolumeClaim:
+            claimName: uploads-pvc
+
+        # ConfigMap
+        - name: app-config
+          configMap:
+            name: app-config
+
+        # Secret
+        - name: app-secret
+          secret:
+            secretName: app-secret
+
+        # emptyDir with medium=Memory
+        - name: cache
+          emptyDir:
+            medium: Memory
+
+        # emptyDir with sizeLimit
+        - name: temp
+          emptyDir:
+            sizeLimit: 2Gi
+
+        # hostPath
+        - name: host-data
+          hostPath:
+            path: /data/host
+            type: Directory
+
+        # downwardAPI
+        - name: pod-info
+          downwardAPI:
+            items:
+              - path: labels
+                fieldRef:
+                  fieldPath: metadata.labels
+              - path: annotations
+                fieldRef:
+                  fieldPath: metadata.annotations
+
+        # projected (multiple sources)
+        - name: projected-config
+          projected:
+            sources:
+              - configMap:
+                  name: app-config
+                  items:
+                    - key: config.yaml
+                      path: config.yaml
+                    - key: app.properties
+                      path: app.properties
+              - secret:
+                  name: app-secret
+                  items:
+                    - key: username
+                      path: username
+                    - key: password
+                      path: password
+              - downwardAPI:
+                  items:
+                    - path: cpu-limit
+                      resourceFieldRef:
+                        containerName: app
+                        resource: limits.cpu
+                    - path: pod-name
+                      fieldRef:
+                        fieldPath: metadata.name
+              - serviceAccountToken:
+                  expirationSeconds: 3600
+                  path: token
+
+      containers:
+        - name: app
+          image: nginx:alpine
+          ports:
+            - containerPort: 80
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 200m
+              memory: 256Mi
+          volumeMounts:
+            - name: uploads
+              mountPath: /uploads
+            - name: app-config
+              mountPath: /config
+            - name: app-secret
+              mountPath: /secrets
+            - name: cache
+              mountPath: /cache
+            - name: temp
+              mountPath: /tmp
+            - name: host-data
+              mountPath: /host-data
+            - name: pod-info
+              mountPath: /pod-info
+            - name: projected-config
+              mountPath: /projected
+
+---
+# StatefulSet with volumes
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: postgres
+  namespace: vol-test
+spec:
+  serviceName: postgres
+  replicas: 1
+  selector:
+    matchLabels:
+      app: postgres
+  template:
+    metadata:
+      labels:
+        app: postgres
+    spec:
+      volumes:
+        - name: postgres-config
+          configMap:
+            name: app-config
+        - name: postgres-secret
+          secret:
+            secretName: app-secret
+        - name: postgres-init
+          emptyDir: {}
+      containers:
+        - name: postgres
+          image: postgres:14
+          ports:
+            - containerPort: 5432
+          env:
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: app-secret
+                  key: password
+          volumeMounts:
+            - name: postgres-config
+              mountPath: /config
+            - name: postgres-secret
+              mountPath: /secrets
+            - name: postgres-init
+              mountPath: /docker-entrypoint-initdb.d
+
+---
+# DaemonSet with volumes
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: log-collector
+  namespace: vol-test
+spec:
+  selector:
+    matchLabels:
+      app: log-collector
+  template:
+    metadata:
+      labels:
+        app: log-collector
+    spec:
+      volumes:
+        - name: var-log
+          hostPath:
+            path: /var/log
+            type: Directory
+        - name: log-buffer
+          emptyDir:
+            medium: Memory
+        - name: collector-config
+          configMap:
+            name: app-config
+      containers:
+        - name: collector
+          image: fluent/fluentd:v1.16
+          volumeMounts:
+            - name: var-log
+              mountPath: /host/var/log
+              readOnly: true
+            - name: log-buffer
+              mountPath: /buffer
+            - name: collector-config
+              mountPath: /fluentd/etc
+
+---
+# Job with volumes
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: data-processor
+  namespace: vol-test
+spec:
+  template:
+    metadata:
+      labels:
+        app: data-processor
+    spec:
+      volumes:
+        - name: input-data
+          configMap:
+            name: app-config
+        - name: output-data
+          emptyDir:
+            sizeLimit: 5Gi
+        - name: job-secret
+          secret:
+            secretName: app-secret
+      containers:
+        - name: processor
+          image: busybox:latest
+          command:
+            - sh
+            - -c
+            - |
+              echo "Processing data..."
+              sleep 5
+              echo "Done"
+          volumeMounts:
+            - name: input-data
+              mountPath: /input
+            - name: output-data
+              mountPath: /output
+            - name: job-secret
+              mountPath: /secrets
+      restartPolicy: OnFailure
+
+---
+# CronJob with volumes
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: backup-job
+  namespace: vol-test
+spec:
+  schedule: '*/5 * * * *'
+  jobTemplate:
+    spec:
+      template:
+        metadata:
+          labels:
+            app: backup-job
+        spec:
+          volumes:
+            - name: backup-config
+              configMap:
+                name: app-config
+            - name: backup-storage
+              emptyDir:
+                medium: Memory
+            - name: backup-secret
+              secret:
+                secretName: app-secret
+          containers:
+            - name: backup
+              image: busybox:latest
+              command:
+                - sh
+                - -c
+                - |
+                  echo "Running backup..."
+                  sleep 3
+                  echo "Backup complete"
+              volumeMounts:
+                - name: backup-config
+                  mountPath: /config
+                - name: backup-storage
+                  mountPath: /backup
+                - name: backup-secret
+                  mountPath: /secrets
+          restartPolicy: OnFailure
+
+---
+# Pod with ephemeral volume (Kubernetes 1.19+)
+apiVersion: v1
+kind: Pod
+metadata:
+  name: ephemeral-test
+  namespace: vol-test
+spec:
+  volumes:
+    - name: ephemeral-storage
+      ephemeral:
+        volumeClaimTemplate:
+          spec:
+            accessModes: ['ReadWriteOnce']
+            storageClassName: 'standard'
+            resources:
+              requests:
+                storage: 1Gi
+    - name: pod-config
+      configMap:
+        name: app-config
+  containers:
+    - name: app
+      image: nginx:alpine
+      volumeMounts:
+        - name: ephemeral-storage
+          mountPath: /ephemeral
+        - name: pod-config
+          mountPath: /config
+
+---
+# Service for the deployment
+apiVersion: v1
+kind: Service
+metadata:
+  name: md-host-service
+  namespace: vol-test
+spec:
+  selector:
+    app: md-host
+  ports:
+    - port: 80
+      targetPort: 80
+  type: NodePort

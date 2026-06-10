@@ -48,6 +48,7 @@ export interface RawClusterData {
   ingresses: import('@kubernetes/client-node').V1Ingress[];
   configMaps: import('@kubernetes/client-node').V1ConfigMap[];
   secrets: import('@kubernetes/client-node').V1Secret[];
+  persistentVolumeClaims: import('@kubernetes/client-node').V1PersistentVolumeClaim[];
   serverVersion?: string;
   nodeCount?: number;
 }
