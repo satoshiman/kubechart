@@ -7,6 +7,7 @@ import type {
   PodNode,
   ServiceNode,
   VolumeNode,
+  PVCNode,
 } from '../tree/types.js';
 import type { MetricsMode } from '../metrics/types.js';
 import { getPodStatusColor, getColor, getVolumeTypeColor } from './colors.js';
@@ -150,12 +151,14 @@ function NamespaceRow({
     namespace.services.length > 0 ||
     namespace.ingresses.length > 0 ||
     namespace.configMaps.length > 0 ||
+    namespace.pvcs.length > 0 ||
     (namespace.orphanPods && namespace.orphanPods.length > 0);
   const totalResources =
     namespace.workloads.length +
     namespace.services.length +
     namespace.ingresses.length +
     namespace.configMaps.length +
+    namespace.pvcs.length +
     (namespace.orphanPods?.length || 0);
 
   return (
@@ -177,6 +180,7 @@ function NamespaceRow({
             namespace.services.length === 0 &&
             namespace.ingresses.length === 0 &&
             namespace.configMaps.length === 0 &&
+            namespace.pvcs.length === 0 &&
             (!namespace.orphanPods || namespace.orphanPods.length === 0)
           }
           flashing={flashing}
@@ -198,6 +202,7 @@ function NamespaceRow({
             svcIndex === namespace.services.length - 1 &&
             namespace.ingresses.length === 0 &&
             namespace.configMaps.length === 0 &&
+            namespace.pvcs.length === 0 &&
             (!namespace.orphanPods || namespace.orphanPods.length === 0)
           }
           showMetrics={showMetrics}
@@ -213,6 +218,7 @@ function NamespaceRow({
           isLast={
             ingIndex === namespace.ingresses.length - 1 &&
             namespace.configMaps.length === 0 &&
+            namespace.pvcs.length === 0 &&
             (!namespace.orphanPods || namespace.orphanPods.length === 0)
           }
         />
@@ -225,6 +231,19 @@ function NamespaceRow({
           prefix={childPrefix}
           isLast={
             cmIndex === namespace.configMaps.length - 1 &&
+            namespace.pvcs.length === 0 &&
+            (!namespace.orphanPods || namespace.orphanPods.length === 0)
+          }
+        />
+      ))}
+
+      {namespace.pvcs.map((pvc, pvcIndex) => (
+        <PVCRow
+          key={pvc.name}
+          pvc={pvc}
+          prefix={childPrefix}
+          isLast={
+            pvcIndex === namespace.pvcs.length - 1 &&
             (!namespace.orphanPods || namespace.orphanPods.length === 0)
           }
         />
@@ -827,6 +846,41 @@ function ConfigMapRow({ configMap, prefix, isLast }: ConfigMapRowProps): React.R
         {' '}
         {configMap.name} {configMap.keys} keys
       </Text>
+    </Box>
+  );
+}
+
+interface PVCRowProps {
+  pvc: PVCNode;
+  prefix: string;
+  isLast: boolean;
+}
+
+function PVCRow({ pvc, prefix, isLast }: PVCRowProps): React.ReactElement {
+  const pvcPrefix = isLast ? '└──' : '├──';
+
+  // Format access modes to short code (e.g., ReadWriteOnce -> RWO)
+  const accessModeCode = pvc.accessModes
+    .replace('ReadWriteOnce', 'RWO')
+    .replace('ReadOnlyMany', 'ROX')
+    .replace('ReadWriteMany', 'RWX')
+    .replace('ReadWriteOncePod', 'RWOP');
+
+  return (
+    <Box>
+      <Text color={getColor('tree')}>{prefix}</Text>
+      <Text color={getColor('tree')}>{pvcPrefix} PVC </Text>
+      <Text color={getColor('configMap')}>◉</Text>
+      <Text color={getColor('workload')}>
+        {' '}
+        {pvc.name} [{pvc.status}, {pvc.capacity}, {accessModeCode}]
+      </Text>
+      {pvc.podCount > 0 && (
+        <Text color={getColor('tree')}>
+          {' '}
+          ← {pvc.podCount} pod{pvc.podCount > 1 ? 's' : ''}
+        </Text>
+      )}
     </Box>
   );
 }

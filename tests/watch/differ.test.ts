@@ -41,6 +41,7 @@ describe('diffTrees', () => {
         services: [],
         ingresses: [],
         configMaps: [],
+        pvcs: [],
       },
     ],
     fetchedAt: new Date(),
@@ -190,6 +191,7 @@ describe('diffTrees', () => {
           services: [],
           ingresses: [],
           configMaps: [],
+          pvcs: [],
         },
       ],
     });
@@ -212,6 +214,7 @@ describe('diffTrees', () => {
           services: [],
           ingresses: [],
           configMaps: [],
+          pvcs: [],
         },
       ],
     });

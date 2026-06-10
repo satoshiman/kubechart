@@ -9,6 +9,7 @@ import type {
   IngressNode,
   ReplicaSetNode,
   ConfigMapNode,
+  PVCNode,
   VolumeNode,
   VolumeType,
 } from './types.js';
@@ -114,6 +115,9 @@ export function buildTree(
       // Build configMap nodes
       const configMaps: ConfigMapNode[] = nsConfigMaps.map((c) => buildConfigMapNode(c));
 
+      // Build PVC nodes
+      const pvcs: PVCNode[] = nsPVCs.map((p) => buildPVCNode(p, nsPods));
+
       return {
         name: nsName,
         status: nsStatus,
@@ -121,6 +125,7 @@ export function buildTree(
         services,
         ingresses,
         configMaps,
+        pvcs,
         orphanPods,
       };
     }
@@ -733,6 +738,32 @@ function buildConfigMapNode(
   return {
     name,
     keys,
+  };
+}
+
+function buildPVCNode(
+  pvc: import('@kubernetes/client-node').V1PersistentVolumeClaim,
+  nsPods: import('@kubernetes/client-node').V1Pod[]
+): PVCNode {
+  const name = pvc.metadata?.name || 'unknown';
+  const status = pvc.status?.phase || 'Unknown';
+  const capacity = pvc.status?.capacity?.storage || '';
+  const accessModes = pvc.spec?.accessModes?.join(',') || '';
+  const storageClass = pvc.spec?.storageClassName;
+
+  // Count pods using this PVC
+  const podCount = nsPods.filter((pod) => {
+    const volumes = pod.spec?.volumes || [];
+    return volumes.some((vol) => vol.persistentVolumeClaim?.claimName === name);
+  }).length;
+
+  return {
+    name,
+    status,
+    capacity,
+    accessModes,
+    storageClass,
+    podCount,
   };
 }
 

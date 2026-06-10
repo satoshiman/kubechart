@@ -56,6 +56,15 @@ export interface ConfigMapNode {
   keys: number;
 }
 
+export interface PVCNode {
+  name: string;
+  status: string;
+  capacity: string;
+  accessModes: string;
+  storageClass?: string;
+  podCount: number;
+}
+
 export type VolumeType =
   | 'PersistentVolumeClaim'
   | 'hostPath'
@@ -115,6 +124,7 @@ export interface NamespaceNode {
   services: ServiceNode[];
   ingresses: IngressNode[];
   configMaps: ConfigMapNode[];
+  pvcs: PVCNode[];
   orphanPods?: PodNode[]; // Pods not owned by any workload
 }
 

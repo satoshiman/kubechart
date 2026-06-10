@@ -53,12 +53,14 @@ export function StatusBar({
     const servicesCount = tree.namespaces.reduce((sum, ns) => sum + ns.services.length, 0);
     const ingressesCount = tree.namespaces.reduce((sum, ns) => sum + ns.ingresses.length, 0);
     const configMapsCount = tree.namespaces.reduce((sum, ns) => sum + ns.configMaps.length, 0);
+    const pvcsCount = tree.namespaces.reduce((sum, ns) => sum + ns.pvcs.length, 0);
 
     return (
       <Box>
         <Text color={getColor('tree')}>
           namespaces: {tree.namespaces.length} | workloads: {workloadsCount} | pods: {podsCount} |
-          services: {servicesCount} | ingresses: {ingressesCount} | configmaps: {configMapsCount}
+          services: {servicesCount} | ingresses: {ingressesCount} | configmaps: {configMapsCount} |
+          pvc: {pvcsCount}
         </Text>
       </Box>
     );

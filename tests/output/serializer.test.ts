@@ -46,6 +46,7 @@ describe('serializeCluster', () => {
           },
         ],
         configMaps: [],
+        pvcs: [],
       },
     ],
     fetchedAt: new Date('2024-01-01T00:00:00Z'),
@@ -148,6 +149,7 @@ describe('serializeCluster', () => {
           services: [],
           ingresses: [],
           configMaps: [],
+          pvcs: [],
         },
       ],
     });
