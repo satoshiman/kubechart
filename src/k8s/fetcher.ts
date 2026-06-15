@@ -7,10 +7,9 @@ export async function fetchAllNamespaceNames(client: K8sClient): Promise<string[
     const nsList = await client.core.listNamespace();
     return nsList.body.items.map((ns) => ns.metadata?.name || '').filter(Boolean);
   } catch (error) {
-    if (error instanceof Error) {
-      throw new Error(`Failed to fetch namespaces: ${error.message}`);
-    }
-    throw new Error('Failed to fetch namespaces');
+    // Permission denied or other error - return empty array
+    // Caller should handle gracefully
+    return [];
   }
 }
 
@@ -42,6 +41,7 @@ export async function fetchClusterData(
     const configMaps: k8s.V1ConfigMap[] = [];
     const secrets: k8s.V1Secret[] = [];
     const persistentVolumeClaims: k8s.V1PersistentVolumeClaim[] = [];
+    const hpas: k8s.V2HorizontalPodAutoscaler[] = [];
 
     for (const ns of namespaces) {
       const nsName = ns.metadata?.name;
@@ -60,6 +60,7 @@ export async function fetchClusterData(
         nsConfigMaps,
         nsSecrets,
         nsPVCs,
+        nsHPAs,
       ] = await Promise.all([
         fetchDeployments(client.apps, nsName),
         fetchReplicaSets(client.apps, nsName),
@@ -73,6 +74,7 @@ export async function fetchClusterData(
         fetchConfigMaps(client.core, nsName),
         fetchSecrets(client.core, nsName),
         fetchPersistentVolumeClaims(client.core, nsName),
+        fetchHPAs(client.autoscaling, nsName),
       ]);
 
       deployments.push(...nsDeployments);
@@ -87,6 +89,7 @@ export async function fetchClusterData(
       configMaps.push(...nsConfigMaps);
       secrets.push(...nsSecrets);
       persistentVolumeClaims.push(...nsPVCs);
+      hpas.push(...nsHPAs);
     }
 
     return {
@@ -103,6 +106,7 @@ export async function fetchClusterData(
       configMaps,
       secrets,
       persistentVolumeClaims,
+      hpas,
       serverVersion,
       nodeCount,
     };
@@ -141,22 +145,28 @@ async function fetchNamespaces(
   core: k8s.CoreV1Api,
   namespace?: string | string[]
 ): Promise<k8s.V1Namespace[]> {
-  if (namespace) {
-    if (Array.isArray(namespace)) {
-      // Fetch multiple specific namespaces
-      const promises = namespace.map((ns) => core.readNamespace(ns));
-      const results = await Promise.allSettled(promises);
-      return results
-        .filter((r) => r.status === 'fulfilled')
-        .map((r) => (r as PromiseFulfilledResult<{ body: k8s.V1Namespace }>).value.body);
-    } else {
-      // Fetch single namespace
-      const res = await core.readNamespace(namespace);
-      return [res.body];
+  try {
+    if (namespace) {
+      if (Array.isArray(namespace)) {
+        // Fetch multiple specific namespaces
+        const promises = namespace.map((ns) => core.readNamespace(ns));
+        const results = await Promise.allSettled(promises);
+        return results
+          .filter((r) => r.status === 'fulfilled')
+          .map((r) => (r as PromiseFulfilledResult<{ body: k8s.V1Namespace }>).value.body);
+      } else {
+        // Fetch single namespace
+        const res = await core.readNamespace(namespace);
+        return [res.body];
+      }
     }
+    const res = await core.listNamespace();
+    return res.body.items;
+  } catch (error) {
+    // Permission denied or other error - return empty array
+    // The caller (fetchClusterData) will handle showing appropriate message
+    return [];
   }
-  const res = await core.listNamespace();
-  return res.body.items;
 }
 
 async function fetchDeployments(apps: k8s.AppsV1Api, ns: string): Promise<k8s.V1Deployment[]> {
@@ -274,6 +284,18 @@ async function fetchPersistentVolumeClaims(
 ): Promise<k8s.V1PersistentVolumeClaim[]> {
   try {
     const res = await core.listNamespacedPersistentVolumeClaim(ns);
+    return res.body.items;
+  } catch (error) {
+    return [];
+  }
+}
+
+async function fetchHPAs(
+  autoscaling: k8s.AutoscalingV2Api,
+  ns: string
+): Promise<k8s.V2HorizontalPodAutoscaler[]> {
+  try {
+    const res = await autoscaling.listNamespacedHorizontalPodAutoscaler(ns);
     return res.body.items;
   } catch (error) {
     return [];

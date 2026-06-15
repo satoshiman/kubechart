@@ -145,16 +145,21 @@ export function WatchView({ opts }: { opts: WatchOptions }): React.ReactElement 
         if (sortedNonSystemNs.length > 0) {
           loadingStartTimeRef.current = Date.now();
           setCurrentNamespace(sortedNonSystemNs[0]);
+        } else if (nsList.length > 0) {
+          // Only system namespaces available, use them
+          loadingStartTimeRef.current = Date.now();
+          setCurrentNamespace(nsList[0]);
         } else {
-          // Fallback: no non-default namespaces available
-          setError('No non-default namespaces available');
-          setStatus('error');
+          // No namespaces available - use current namespace from context
+          loadingStartTimeRef.current = Date.now();
+          setCurrentNamespace(opts.client.currentNamespace);
         }
       })
       .catch((err) => {
         console.error('Failed to fetch namespace list:', err);
-        setError('Failed to fetch namespace list');
-        setStatus('error');
+        // Fallback to current namespace from context
+        loadingStartTimeRef.current = Date.now();
+        setCurrentNamespace(opts.client.currentNamespace);
       });
   }, []);
 

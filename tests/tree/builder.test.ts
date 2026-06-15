@@ -34,6 +34,7 @@ describe('buildTree', () => {
       ingresses: [],
       configMaps: [],
       secrets: [],
+      hpas: [],
       serverVersion: 'v1.29.0',
       nodeCount: 3,
     };
@@ -111,6 +112,7 @@ describe('buildTree', () => {
       ingresses: [],
       configMaps: [],
       secrets: [],
+      hpas: [],
       serverVersion: 'v1.29.0',
       nodeCount: 3,
     };
@@ -179,6 +181,7 @@ describe('buildTree', () => {
       ingresses: [],
       configMaps: [],
       secrets: [],
+      hpas: [],
       serverVersion: 'v1.29.0',
       nodeCount: 3,
     };
@@ -245,6 +248,7 @@ describe('buildTree', () => {
       ingresses: [],
       configMaps: [],
       secrets: [],
+      hpas: [],
       serverVersion: 'v1.29.0',
       nodeCount: 3,
     };
@@ -310,6 +314,7 @@ describe('buildTree', () => {
       ingresses: [],
       configMaps: [],
       secrets: [],
+      hpas: [],
       serverVersion: 'v1.29.0',
       nodeCount: 3,
     };
@@ -377,6 +382,7 @@ describe('buildTree', () => {
       ingresses: [],
       configMaps: [],
       secrets: [],
+      hpas: [],
       serverVersion: 'v1.29.0',
       nodeCount: 3,
     };
@@ -417,6 +423,7 @@ describe('buildTree', () => {
       ingresses: [],
       configMaps: [],
       secrets: [],
+      hpas: [],
       serverVersion: 'v1.29.0',
       nodeCount: 3,
     };
@@ -471,6 +478,7 @@ describe('buildTree', () => {
       ],
       configMaps: [],
       secrets: [],
+      hpas: [],
       serverVersion: 'v1.29.0',
       nodeCount: 3,
     };
@@ -504,6 +512,7 @@ describe('buildTree', () => {
       ingresses: [],
       configMaps: [],
       secrets: [],
+      hpas: [],
       serverVersion: 'v1.29.0',
       nodeCount: 3,
     };
@@ -581,6 +590,7 @@ describe('buildTree', () => {
       ingresses: [],
       configMaps: [],
       secrets: [],
+      hpas: [],
       serverVersion: 'v1.29.0',
       nodeCount: 3,
     };
@@ -664,6 +674,7 @@ describe('buildTree', () => {
       ingresses: [],
       configMaps: [],
       secrets: [],
+      hpas: [],
       serverVersion: 'v1.29.0',
       nodeCount: 3,
     };
@@ -724,6 +735,7 @@ describe('buildTree', () => {
       ingresses: [],
       configMaps: [],
       secrets: [],
+      hpas: [],
       serverVersion: 'v1.29.0',
       nodeCount: 3,
     };
@@ -750,6 +762,7 @@ describe('buildTree', () => {
       ingresses: [asV1Ingress({})],
       configMaps: [],
       secrets: [],
+      hpas: [],
       serverVersion: 'v1.29.0',
       nodeCount: 3,
     };

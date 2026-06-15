@@ -63,6 +63,9 @@ export function buildTree(
       const nsPVCs = (raw.persistentVolumeClaims || []).filter(
         (p: { metadata?: { namespace?: string } }) => p.metadata?.namespace === nsName
       );
+      const nsHPAs = (raw.hpas || []).filter(
+        (h: { metadata?: { namespace?: string } }) => h.metadata?.namespace === nsName
+      );
 
       // Build workload nodes from all resource types
       // Filter out jobs that are owned by CronJobs to avoid duplication
@@ -73,7 +76,15 @@ export function buildTree(
 
       const workloads: WorkloadNode[] = [
         ...nsDeployments.map((d) =>
-          buildWorkloadFromDeployment(d, nsReplicaSets, raw.pods, nsConfigMaps, nsSecrets, nsPVCs)
+          buildWorkloadFromDeployment(
+            d,
+            nsReplicaSets,
+            raw.pods,
+            nsConfigMaps,
+            nsSecrets,
+            nsPVCs,
+            nsHPAs
+          )
         ),
         ...nsStatefulSets.map((s) =>
           buildWorkloadFromStatefulSet(s, raw.pods, nsConfigMaps, nsSecrets, nsPVCs)
@@ -333,7 +344,8 @@ function buildWorkloadFromDeployment(
   allPods: import('@kubernetes/client-node').V1Pod[],
   configMaps: import('@kubernetes/client-node').V1ConfigMap[],
   secrets: import('@kubernetes/client-node').V1Secret[],
-  pvcs: import('@kubernetes/client-node').V1PersistentVolumeClaim[]
+  pvcs: import('@kubernetes/client-node').V1PersistentVolumeClaim[],
+  hpas: import('@kubernetes/client-node').V2HorizontalPodAutoscaler[]
 ): WorkloadNode {
   const deploymentName = deployment.metadata?.name || 'unknown';
 
@@ -392,6 +404,9 @@ function buildWorkloadFromDeployment(
         .join(',')
     : undefined;
 
+  // Find HPA for this deployment
+  const hpa = findHPAForWorkload(deploymentName, 'Deployment', hpas);
+
   return {
     name: deploymentName,
     kind: 'Deployment',
@@ -399,6 +414,59 @@ function buildWorkloadFromDeployment(
     image,
     replicaSets: replicaSetNodes,
     selector,
+    hpa,
+  };
+}
+
+function findHPAForWorkload(
+  workloadName: string,
+  workloadKind: string,
+  hpas: import('@kubernetes/client-node').V2HorizontalPodAutoscaler[]
+): import('./types.js').HPAInfo | undefined {
+  // Find HPA that targets this workload
+  const matchingHPA = hpas.find((hpa) => {
+    const ref = hpa.spec?.scaleTargetRef;
+    if (!ref) return false;
+    return ref.name === workloadName && ref.kind === workloadKind;
+  });
+
+  if (!matchingHPA) return undefined;
+
+  const minReplicas = matchingHPA.spec?.minReplicas ?? 1;
+  const maxReplicas = matchingHPA.spec?.maxReplicas ?? 1;
+  const currentReplicas = matchingHPA.status?.currentReplicas ?? 0;
+
+  // Extract metrics info
+  const metrics = matchingHPA.spec?.metrics;
+  let metricStr = '';
+  if (metrics && metrics.length > 0) {
+    metricStr = metrics
+      .map((m) => {
+        if (m.resource) {
+          const target = m.resource.target;
+          if (target?.averageUtilization) {
+            return `${m.resource.name}:${target.averageUtilization}%`;
+          } else if (target?.averageValue) {
+            return `${m.resource.name}:${target.averageValue}`;
+          }
+        } else if (m.pods) {
+          return `${m.pods.metric?.name || 'pods'}`;
+        } else if (m.object) {
+          return `${m.object.metric?.name || 'object'}`;
+        } else if (m.external) {
+          return `${m.external.metric?.name || 'external'}`;
+        }
+        return '';
+      })
+      .filter(Boolean)
+      .join(', ');
+  }
+
+  return {
+    minReplicas,
+    maxReplicas,
+    currentReplicas,
+    metrics: metricStr || undefined,
   };
 }
 

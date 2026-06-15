@@ -115,6 +115,14 @@ export interface WorkloadNode {
   aggregatedMetrics?: AggregatedMetrics; // NEW: sum từ tất cả pods con
   selector?: string; // NEW: label selector
   volumes?: VolumeNode[]; // NEW: volumes defined in this workload (for non-Deployment workloads)
+  hpa?: HPAInfo; // NEW: HPA associated with this workload
+}
+
+export interface HPAInfo {
+  minReplicas: number;
+  maxReplicas: number;
+  currentReplicas: number;
+  metrics?: string; // cpu/memory target info
 }
 
 export interface NamespaceNode {

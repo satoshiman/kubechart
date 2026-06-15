@@ -326,6 +326,13 @@ function WorkloadRow({
             {' '}
             {workload.kind} {workload.name} [{workload.ready}]
           </Text>
+          {workload.hpa && (
+            <Text dimColor>
+              {' '}
+              HPA {workload.hpa.minReplicas}→{workload.hpa.maxReplicas}
+              {workload.hpa.metrics && ` ${workload.hpa.metrics}`}
+            </Text>
+          )}
           {showMetrics && (
             <>
               <Spacer />
