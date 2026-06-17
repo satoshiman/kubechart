@@ -8,7 +8,7 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 // Copy to clipboard functionality - used by HTML onclick handler
-// eslint-disable-next-line no-unused-vars
+// eslint-disable-next-line no-unused-vars, @typescript-eslint/no-unused-vars
 function copyInstall() {
   const command = 'npx kubechart';
   navigator.clipboard.writeText(command).then(() => {
@@ -149,16 +149,24 @@ function initScrollAnimations() {
     });
   }, observerOptions);
 
-  // Observe cards and sections
-  const animatedElements = document.querySelectorAll(
-    '.problem-card, .feature-card, .quickstart-card, .usecase-card, .legend-item, .shortcut'
-  );
+  // Observe cards and sections — group by parent to reset delay per section
+  const selectors = [
+    '.problem-card',
+    '.feature-card',
+    '.quickstart-card',
+    '.usecase-card',
+    '.legend-item',
+    '.shortcut',
+  ];
 
-  animatedElements.forEach((el, index) => {
-    el.style.opacity = '0';
-    el.style.transform = 'translateY(20px)';
-    el.style.transition = `opacity 0.4s ease ${index * 0.05}s, transform 0.4s ease ${index * 0.05}s`;
-    observer.observe(el);
+  selectors.forEach((selector) => {
+    const elements = document.querySelectorAll(selector);
+    elements.forEach((el, index) => {
+      el.style.opacity = '0';
+      el.style.transform = 'translateY(20px)';
+      el.style.transition = `opacity 0.4s ease ${index * 0.05}s, transform 0.4s ease ${index * 0.05}s`;
+      observer.observe(el);
+    });
   });
 
   // Add CSS for animate-in class

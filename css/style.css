@@ -433,7 +433,7 @@ section {
   display: grid;
   grid-template-columns: 1fr auto 1fr;
   gap: 24px;
-  align-items: start;
+  align-items: stretch;
   margin-bottom: 60px;
 }
 
@@ -441,6 +441,16 @@ section {
   display: flex;
   flex-direction: column;
   gap: 12px;
+}
+
+.demo-side .demo-terminal {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.demo-side .demo-terminal pre {
+  flex: 1;
 }
 
 .demo-label {
@@ -489,7 +499,6 @@ section {
 
 .kubectl-output pre {
   color: var(--color-text-secondary);
-  max-height: 420px;
   overflow-y: auto;
 }
 
@@ -521,7 +530,6 @@ section {
   align-items: center;
   justify-content: center;
   color: var(--color-accent);
-  padding-top: 40px;
 }
 
 /* Legend Section */
@@ -928,10 +936,10 @@ section {
 
 .cta-install {
   display: flex;
-  align-items: center;
+  align-items: stretch;
   justify-content: center;
   gap: 12px;
-  margin-bottom: 32px;
+  margin: 32px 0;
 }
 
 .install-command.large {
@@ -940,6 +948,9 @@ section {
   background: var(--color-terminal-bg);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-sm);
+  height: 56px;
+  display: flex;
+  align-items: center;
 }
 
 .copy-btn.large {
@@ -947,6 +958,9 @@ section {
   padding: 16px 24px;
   font-size: 0.9375rem;
   font-weight: 500;
+  display: flex;
+  align-items: center;
+  height: 56px;
 }
 
 .cta-links {
