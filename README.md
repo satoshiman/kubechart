@@ -1,20 +1,27 @@
 # kubechart
 
-CLI tool to visualize Kubernetes cluster as an ASCII tree directly in your terminal. Perfect for quick debugging when SSH'd into servers.
+[![npm version](https://img.shields.io/npm/v/kubechart.svg)](https://www.npmjs.com/package/kubechart)
+[![npm downloads](https://img.shields.io/npm/dm/kubechart.svg)](https://www.npmjs.com/package/kubechart)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Node.js >= 18.0.0](https://img.shields.io/badge/Node.js-%3E%3D%2018.0.0-brightgreen.svg)](https://nodejs.org/)
+
+**🎯 CLI tool to visualize Kubernetes cluster as an ASCII tree directly in your terminal. Perfect for quick debugging when SSH'd into servers.**
+
+> Kubechart transforms kubectl chaos into elegant ASCII trees. No UI. No web dashboard. Just pure terminal power. 🚀
 
 ```text
-██╗░░██╗██╗░░░██╗██████╗░███████╗░█████╗░██╗░░██╗░█████╗░██████╗░████████╗
-██║░██╔╝██║░░░██║██╔══██╗██╔════╝██╔══██╗██║░░██║██╔══██╗██╔══██╗╚══██╔══╝
-█████═╝░██║░░░██║██████╦╝█████╗░░██║░░╚═╝███████║███████║██████╔╝░░░██║░░░
-██╔═██╗░██║░░░██║██╔══██╗██╔══╝░░██║░░██╗██╔══██║██╔══██║██╔══██╗░░░██║░░░
-██║░╚██╗╚██████╔╝██████╦╝███████╗╚█████╔╝██║░░██║██║░░██║██║░░██║░░░██║░░░
-╚═╝░░╚═╝░╚═════╝░╚═════╝░╚══════╝░╚════╝░╚═╝░░╚═╝╚═╝░░╚═╝╚═╝░░╚═╝░░░╚═╝░░░
+██╗░░██╗██╗░░░██╗██████╗░███████╗░█████╗░██╗░░██╗░█████╗░██████╗░
+██║░██╔╝██║░░░██║██╔══██╗██╔════╝██╔══██╗██║░░██║██╔══██╗██╔══██╗
+█████═╝░██║░░░██║██████╦╝█████╗░░██║░░╚═╝███████║███████║██████╔╝
+██╔═██╗░██║░░░██║██╔══██╗██╔══╝░░██║░░██╗██╔══██║██╔══██║██╔══██╗
+██║░╚██╗╚██████╔╝██████╦╝███████╗╚█████╔╝██║░░██║██║░░██║██║░░██║
+╚═╝░░╚═╝░╚═════╝░╚═════╝░╚══════╝░╚════╝░╚═╝░░╚═╝╚═╝░░╚═╝╚═╝░░╚═╝
 
-                 █▀▀ █░░ █   ▀█▀ █▀█ █▀█ █░░
-                 █▄▄ █▄▄ █   ░█░ █▄█ █▄█ █▄▄
+             █▀▀ █░░ █   ▀█▀ █▀█ █▀█ █░░
+             █▄▄ █▄▄ █   ░█░ █▄█ █▄█ █▄▄
 ```
 
-## Features
+## ✨ Features
 
 - **Watch Mode (Default)**: Auto-refresh with countdown timer, diff highlighting, and manual refresh with `r` key
 - **Pause/Resume**: Pause the countdown timer with `p` key to stop auto-refresh temporarily
@@ -34,7 +41,18 @@ CLI tool to visualize Kubernetes cluster as an ASCII tree directly in your termi
 - **Multi-Context Support**: Switch between different kubeconfig contexts
 - **Error Handling**: Clear error messages for common K8s connection issues
 
-## Installation
+## 🎯 Why kubechart?
+
+| Feature | kubechart | kubectl | Other Tools |
+| --- | --- | --- | --- |
+| **Tree visualization** | ✅ Visual hierarchy | ❌ List format | ⚠️ Web UI needed |
+| **Real-time metrics** | ✅ Built-in | ❌ Separate commands | ⚠️ External setup |
+| **Terminal-only** | ✅ Pure CLI | ✅ CLI | ❌ Browser/Dashboard |
+| **No dependencies** | ✅ Single binary | ✅ Single binary | ❌ Server/UI setup |
+| **SSH-friendly** | ✅ Perfect for remote | ✅ Works | ⚠️ Not ideal |
+| **Keyboard controls** | ✅ Interactive | ❌ Non-interactive | ⚠️ Limited |
+
+## 📦 Installation
 
 ```bash
 npm install -g kubechart
@@ -46,7 +64,23 @@ Or use with npx:
 npx kubechart
 ```
 
-## Usage
+## 🚀 Quick Start
+
+```bash
+# Watch mode (default) - auto-refresh every 5s
+kubechart
+
+# Print once and exit
+kubechart --once
+
+# Show all namespaces
+kubechart -A
+
+# Filter by specific namespace
+kubechart -n production
+```
+
+## 📖 Usage
 
 ### Basic Usage
 
@@ -158,7 +192,7 @@ kubechart --output yaml --out-file cluster.yaml
 namespaces: 1 | workloads: 5 | pods: 9 | services: 3 | ingresses: 2 | configmaps: 3
 ```
 
-## Pod Status Legend
+## 📋 Pod Status Legend
 
 | Symbol | Color  | Meaning                               |
 | ------ | ------ | ------------------------------------- |
@@ -169,7 +203,7 @@ namespaces: 1 | workloads: 5 | pods: 9 | services: 3 | ingresses: 2 | configmaps
 | `○`    | gray   | Succeeded (Job completed)             |
 | `◍`    | orange | Terminating (being deleted)           |
 
-## Resource Type Legend
+## 🏷️ Resource Type Legend
 
 | Symbol | Type         |
 | ------ | ------------ |
@@ -186,7 +220,7 @@ namespaces: 1 | workloads: 5 | pods: 9 | services: 3 | ingresses: 2 | configmaps
 | ◆      | Ingress      |
 | ◉      | ConfigMap    |
 
-## Error Handling
+## ⚠️ Error Handling
 
 kubechart provides clear error messages for common issues:
 
@@ -197,7 +231,7 @@ kubechart provides clear error messages for common issues:
 - **Namespace not found**: Watch mode will auto-retry when the namespace becomes available
 - **Non-interactive terminal**: Watch mode requires a TTY. Use `--once` flag for static output in scripts or non-interactive environments
 
-## Development
+## 🛠️ Development
 
 ```bash
 # Install dependencies
@@ -225,12 +259,33 @@ npm run lint
 npm run format
 ```
 
-## Requirements
+## 📋 Requirements
 
 - Node.js >= 18.0.0
 - Access to a Kubernetes cluster
 - Valid kubeconfig file
 
-## License
+## 🤝 Contributing
 
-MIT
+Contributions are welcome! Please feel free to submit a [Pull Request](https://github.com/satoshiman/kubechart/pulls).
+
+1. Fork the repository
+2. Create your feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit your changes (`git commit -m 'Add some amazing feature'`)
+4. Push to the branch (`git push origin feature/amazing-feature`)
+5. Open a Pull Request
+
+## 📜 License
+
+MIT - see [LICENSE](LICENSE) for details
+
+## 🔗 Links
+
+- [NPM Package](https://www.npmjs.com/package/kubechart)
+- [GitHub Repository](https://github.com/satoshiman/kubechart)
+- [Releases](https://github.com/satoshiman/kubechart/releases)
+- [Issues](https://github.com/satoshiman/kubechart/issues)
+
+---
+
+**Made with ❤️ for DevOps and Kubernetes engineers**
