@@ -1,0 +1,473 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Kubechart - Visualize Kubernetes Clusters in Your Terminal</title>
+  <meta name="description" content="CLI tool to visualize Kubernetes cluster as ASCII tree. Zero install, SSH-friendly, real-time metrics.">
+  <link rel="stylesheet" href="css/style.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+</head>
+<body>
+  <!-- Navigation -->
+  <nav class="nav">
+    <div class="container nav-inner">
+      <div class="logo">
+        <span class="logo-icon">◆</span>
+        <span class="logo-text">kubechart</span>
+      </div>
+      <div class="nav-links">
+        <a href="#features">Features</a>
+        <a href="#demo">Demo</a>
+        <a href="#comparison">Compare</a>
+        <a href="https://github.com/satoshiman/kubechart" target="_blank" class="nav-github">
+          <svg viewBox="0 0 24 24" width="20" height="20"><path fill="currentColor" d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/></svg>
+          GitHub
+        </a>
+      </div>
+    </div>
+  </nav>
+
+  <!-- Hero Section -->
+  <section class="hero">
+    <div class="container">
+      <div class="hero-grid">
+        <div class="hero-content">
+          <div class="badge">
+            <span class="badge-dot"></span>
+            v0.2.19 — Now on npm
+          </div>
+          <h1 class="hero-title">
+            Kubernetes Debug Tool<br>
+            <span class="highlight">That Just Works</span>
+          </h1>
+          <p class="hero-subtitle">
+            Zero-install cluster visualization. SSH into any server and see your entire 
+            Kubernetes topology in seconds — as a clean ASCII tree.
+          </p>
+          <div class="hero-ctas">
+            <div class="install-box">
+              <code class="install-command">npx kubechart</code>
+              <button class="copy-btn" onclick="copyInstall()" title="Copy to clipboard">
+                <svg viewBox="0 0 24 24" width="16" height="16"><path fill="currentColor" d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/></svg>
+              </button>
+            </div>
+            <a href="https://www.npmjs.com/package/kubechart" target="_blank" class="btn-secondary">
+              <svg viewBox="0 0 24 24" width="18" height="18"><path fill="currentColor" d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm0 2c5.514 0 10 4.486 10 10s-4.486 10-10 10S2 17.514 2 12 6.486 2 12 2zm-1 5v4H7v2h4v4h2v-4h4v-2h-4V7h-2z"/></svg>
+              npm Package
+            </a>
+          </div>
+          <div class="hero-badges">
+            <span class="hero-badge">⚡ Zero Dependencies</span>
+            <span class="hero-badge">🔒 SSH-Friendly</span>
+            <span class="hero-badge">📊 Real-time Metrics</span>
+          </div>
+        </div>
+        <div class="hero-terminal">
+          <div class="terminal-header">
+            <div class="terminal-dots">
+              <span class="dot red"></span>
+              <span class="dot yellow"></span>
+              <span class="dot green"></span>
+            </div>
+            <span class="terminal-title">kubechart — bash</span>
+          </div>
+          <div class="terminal-body">
+            <div class="terminal-line">
+              <span class="prompt">$</span>
+              <span class="typing-text" id="typing-text"></span>
+              <span class="cursor">|</span>
+            </div>
+            <div class="terminal-output" id="terminal-output"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Problem Section -->
+  <section class="problem" id="problem">
+    <div class="container">
+      <h2 class="section-title">The Problem with <code>kubectl</code></h2>
+      <div class="problem-grid">
+        <div class="problem-card">
+          <div class="problem-icon">😵</div>
+          <h3>Flat &amp; Disconnected</h3>
+          <p><code>kubectl get all</code> shows a messy list. Can't see relationships between Deployments, ReplicaSets, and Pods.</p>
+        </div>
+        <div class="problem-card">
+          <div class="problem-icon">😤</div>
+          <h3>Dashboard Overhead</h3>
+          <p>Kubernetes Dashboard requires deploying pods, port-forwarding, and RBAC setup just to see cluster status.</p>
+        </div>
+        <div class="problem-card">
+          <div class="problem-icon">🐢</div>
+          <h3>Heavy Tools</h3>
+          <p>k9s is great but needs installation. Lens is powerful but requires a desktop app and network access.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Tree View Demo -->
+  <section class="demo" id="demo">
+    <div class="container">
+      <div class="demo-header">
+        <h2 class="section-title">Tree View: See Everything at a Glance</h2>
+        <p class="section-subtitle">Hierarchical visualization with parent-child relationships, status, and metrics — all in one screen.</p>
+      </div>
+      
+      <div class="demo-comparison">
+        <div class="demo-side">
+          <div class="demo-label">
+            <span class="demo-label-badge kubectl">❌ kubectl get all</span>
+          </div>
+          <div class="demo-terminal kubectl-output">
+            <div class="terminal-header small">
+              <span class="terminal-title">kubectl output</span>
+            </div>
+            <pre class="kubectl-text">$ kubectl get all -n production
+
+NAME                           READY   STATUS
+pod/api-76f555f8cd-d9jb6       1/1     Running
+pod/api-76f555f8cd-gmv7w       1/1     Running
+pod/api-76f555f8cd-x2k9p       1/1     Running
+pod/redis-0                    1/1     Running
+pod/redis-1                    1/1     Running
+pod/worker-5cf658bb5-abc12     0/1     Error
+
+NAME                 TYPE        CLUSTER-IP
+service/api          ClusterIP   10.101.87.67
+service/redis        ClusterIP   10.102.234.145
+
+NAME                              DESIRED   READY
+replicaset.apps/api-76f555f8cd    3         3
+replicaset.apps/api-5cf658bb5     0         0
+
+NAME                    READY
+deployment.apps/api     3/3
+
+NAME                    LAST SCHEDULE
+
+cronjob.apps/backup     2h ago
+
+❌ Flat list — no hierarchy
+❌ Pod worker-abc12 belongs to... where?
+❌ Scrolling to connect the dots</pre>
+          </div>
+        </div>
+        
+        <div class="demo-arrow">
+          <svg viewBox="0 0 24 24" width="40" height="40"><path fill="currentColor" d="M12 4l-1.41 1.41L16.17 11H4v2h12.17l-5.58 5.59L12 20l8-8z"/></svg>
+        </div>
+        
+        <div class="demo-side">
+          <div class="demo-label">
+            <span class="demo-label-badge kubechart">✅ Kubechart</span>
+          </div>
+          <div class="demo-terminal kubechart-output">
+            <div class="terminal-header small">
+              <span class="terminal-title">kubechart</span>
+            </div>
+            <pre class="kubechart-text"><span class="c-cluster">◆ CLUSTER production-eks</span> | k8s v1.30.0 | 3 nodes
+
+<span class="c-prompt">[m]etric: use/lim [s]elector: OFF | ↺ 3/5s</span>
+
+<span class="c-tree">└── NAMESPACE production [Active]</span>
+    <span class="c-tree">├──</span> <span class="c-deployment">▲ Deployment api-server [3/3]</span>
+    <span class="c-tree">│   ├──</span> <span class="c-rs">◆ ReplicaSet api-76f555f8cd [3/3]</span>
+    <span class="c-tree">│   │   ├──</span> <span class="c-pod">POD ● api-d9jb6</span>  <span class="c-cpu">CPU ████░░░░ 45%</span>
+    <span class="c-tree">│   │   ├──</span> <span class="c-pod">POD ● api-gmv7w</span>  <span class="c-cpu">CPU █████░░░ 52%</span>
+    <span class="c-tree">│   │   └──</span> <span class="c-pod">POD ● api-x2k9p</span>  <span class="c-cpu">CPU ███░░░░░ 38%</span>
+    <span class="c-tree">│   └──</span> <span class="c-rs-inactive">◆ ReplicaSet api-5cf658bb5 [0/1] (inactive)</span>
+    <span class="c-tree">│</span>
+    <span class="c-tree">├──</span> <span class="c-sts">◆ StatefulSet redis [2/2]</span>
+    <span class="c-tree">│   ├──</span> <span class="c-pod">POD ● redis-0</span>  <span class="c-mem">MEM ████████ 80%</span>
+    <span class="c-tree">│   └──</span> <span class="c-pod">POD ● redis-1</span>  <span class="c-mem">MEM ███████░ 75%</span>
+    <span class="c-tree">│</span>
+    <span class="c-tree">├──</span> <span class="c-daemon">■ DaemonSet fluentd [3/3]</span>
+    <span class="c-tree">│   └──</span> <span class="c-pod">POD ● fluentd-2m5jb</span>
+    <span class="c-tree">│</span>
+    <span class="c-tree">├──</span> <span class="c-cronjob">○ CronJob backup [last: 2h ago]</span> ✓
+    <span class="c-tree">├──</span> <span class="c-service">SVC ● ClusterIP api-service</span>  10.101.87.67
+    <span class="c-tree">├──</span> <span class="c-ingress">ING ◆ api.example.com</span>  / → api-service:80
+    <span class="c-tree">└──</span> <span class="c-config">CM ◉ app-config</span>  12 keys
+
+<span class="c-summary">Workloads: 4 | Pods: 6/7 running | Services: 1</span>
+
+✅ Hierarchy: Deployment → ReplicaSet → Pod
+✅ Instant status: ● Running ◌ Pending ✖ Error
+✅ Metrics inline: CPU ████░░░░ 45%</pre>
+          </div>
+        </div>
+      </div>
+      
+      <div class="legend-section">
+        <h3>Resource Symbols &amp; Status</h3>
+        <div class="legend-grid">
+          <div class="legend-item"><span class="legend-symbol deployment">▲</span> <span class="legend-name">Deployment</span></div>
+          <div class="legend-item"><span class="legend-symbol sts">◆</span> <span class="legend-name">StatefulSet</span></div>
+          <div class="legend-item"><span class="legend-symbol daemon">■</span> <span class="legend-name">DaemonSet</span></div>
+          <div class="legend-item"><span class="legend-symbol job">●</span> <span class="legend-name">Job</span></div>
+          <div class="legend-item"><span class="legend-symbol cronjob">○</span> <span class="legend-name">CronJob</span></div>
+          <div class="legend-item"><span class="legend-symbol rs">◆</span> <span class="legend-name">ReplicaSet</span></div>
+          <div class="legend-item"><span class="legend-symbol pod-running">●</span> <span class="legend-name">Pod Running</span></div>
+          <div class="legend-item"><span class="legend-symbol pod-pending">◌</span> <span class="legend-name">Pod Pending</span></div>
+          <div class="legend-item"><span class="legend-symbol pod-failed">✖</span> <span class="legend-name">Pod Failed</span></div>
+          <div class="legend-item"><span class="legend-symbol pod-succeeded">○</span> <span class="legend-name">Pod Succeeded</span></div>
+          <div class="legend-item"><span class="legend-symbol service">●</span> <span class="legend-name">Service</span></div>
+          <div class="legend-item"><span class="legend-symbol ingress">◆</span> <span class="legend-name">Ingress</span></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Features Grid -->
+  <section class="features" id="features">
+    <div class="container">
+      <h2 class="section-title">Everything You Need for Quick Debugging</h2>
+      <div class="features-grid">
+        <div class="feature-card">
+          <div class="feature-icon">🔄</div>
+          <h3>Watch Mode</h3>
+          <p>Auto-refresh with countdown timer. Pause/resume with <kbd>p</kbd>. Manual refresh with <kbd>r</kbd>.</p>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon">📊</div>
+          <h3>Real-time Metrics</h3>
+          <p>CPU &amp; Memory bars from metrics-server. Toggle modes with <kbd>m</kbd>: numbers → bars → usage/limits.</p>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon">🏷️</div>
+          <h3>Label Selectors</h3>
+          <p>Toggle label selectors and pod labels with <kbd>s</kbd>. Filter resources with <code>-l app=api</code>.</p>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon">💾</div>
+          <h3>Volumes &amp; PVCs</h3>
+          <p>Show storage with capacity, storageClass, and status. Toggle with <kbd>v</kbd>.</p>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon">📁</div>
+          <h3>Smart Hierarchy</h3>
+          <p>Proper Deployment → ReplicaSet → Pod structure. CronJob → Jobs nesting. Inactive ReplicaSets dimmed.</p>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon">💾</div>
+          <h3>Export Snapshots</h3>
+          <p>Export cluster state to JSON or YAML for documentation and audit trails.</p>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon">⚡</div>
+          <h3>Namespace Switching</h3>
+          <p>Press <kbd>0</kbd>-<kbd>9</kbd> to instantly switch between namespaces. No typing required.</p>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon">🎨</div>
+          <h3>Color-Coded Status</h3>
+          <p>Visual indicators for pod health: green (Running), yellow (Pending), red (Failed), gray (Completed).</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Quick Start -->
+  <section class="quickstart" id="quickstart">
+    <div class="container">
+      <h2 class="section-title">Get Started in 30 Seconds</h2>
+      <div class="quickstart-grid">
+        <div class="quickstart-card">
+          <div class="quickstart-number">1</div>
+          <h3>No Install Required</h3>
+          <div class="code-block">
+            <code>npx kubechart</code>
+          </div>
+          <p>Works on any server with Node.js. No setup, no pods to deploy.</p>
+        </div>
+        <div class="quickstart-card">
+          <div class="quickstart-number">2</div>
+          <h3>Filter by Namespace</h3>
+          <div class="code-block">
+            <code>kubechart -n production</code>
+          </div>
+          <p>Or use <kbd>0</kbd>-<kbd>9</kbd> to switch namespaces instantly.</p>
+        </div>
+        <div class="quickstart-card">
+          <div class="quickstart-number">3</div>
+          <h3>Export Snapshot</h3>
+          <div class="code-block">
+            <code>kubechart --once --output yaml --out-file cluster.yaml</code>
+          </div>
+          <p>Save cluster state for documentation or audit.</p>
+        </div>
+      </div>
+      
+      <div class="keyboard-shortcuts">
+        <h3>Keyboard Shortcuts</h3>
+        <div class="shortcuts-grid">
+          <div class="shortcut"><kbd>0</kbd>-<kbd>9</kbd> <span>Switch namespace</span></div>
+          <div class="shortcut"><kbd>r</kbd> <span>Refresh now</span></div>
+          <div class="shortcut"><kbd>p</kbd> <span>Pause/resume</span></div>
+          <div class="shortcut"><kbd>m</kbd> <span>Cycle metrics</span></div>
+          <div class="shortcut"><kbd>s</kbd> <span>Toggle selectors</span></div>
+          <div class="shortcut"><kbd>v</kbd> <span>Toggle volumes</span></div>
+          <div class="shortcut"><kbd>+</kbd>/<kbd>-</kbd> <span>Adjust interval</span></div>
+          <div class="shortcut"><kbd>h</kbd> <span>Toggle legend</span></div>
+          <div class="shortcut"><kbd>?</kbd> <span>Show help</span></div>
+          <div class="shortcut"><kbd>q</kbd> <span>Quit</span></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Comparison -->
+  <section class="comparison" id="comparison">
+    <div class="container">
+      <h2 class="section-title">How Kubechart Compares</h2>
+      <div class="comparison-table-wrapper">
+        <table class="comparison-table">
+          <thead>
+            <tr>
+              <th>Feature</th>
+              <th class="col-kubechart">Kubechart</th>
+              <th>k9s</th>
+              <th>Lens</th>
+              <th>Dashboard</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Zero install <span class="tooltip" title="Run immediately with npx, no global install needed">ⓘ</span></td>
+              <td class="col-kubechart"><span class="check">✓</span></td>
+              <td><span class="cross">✗</span></td>
+              <td><span class="cross">✗</span></td>
+              <td><span class="cross">✗</span></td>
+            </tr>
+            <tr>
+              <td>SSH compatible <span class="tooltip" title="Works directly in terminal over SSH">ⓘ</span></td>
+              <td class="col-kubechart"><span class="check">✓</span></td>
+              <td><span class="check">✓</span></td>
+              <td><span class="cross">✗</span></td>
+              <td><span class="cross">✗</span></td>
+            </tr>
+            <tr>
+              <td>Real-time metrics</td>
+              <td class="col-kubechart"><span class="check">✓</span></td>
+              <td><span class="check">✓</span></td>
+              <td><span class="check">✓</span></td>
+              <td><span class="check">✓</span></td>
+            </tr>
+            <tr>
+              <td>Bar chart metrics</td>
+              <td class="col-kubechart"><span class="check">✓</span></td>
+              <td><span class="cross">✗</span></td>
+              <td><span class="check">✓</span></td>
+              <td><span class="cross">✗</span></td>
+            </tr>
+            <tr>
+              <td>JSON/YAML export</td>
+              <td class="col-kubechart"><span class="check">✓</span></td>
+              <td><span class="cross">✗</span></td>
+              <td><span class="check">✓</span></td>
+              <td><span class="check">✓</span></td>
+            </tr>
+            <tr>
+              <td>Tree visualization</td>
+              <td class="col-kubechart"><span class="check">✓</span></td>
+              <td><span class="check">✓</span></td>
+              <td><span class="check">✓</span></td>
+              <td><span class="check">✓</span></td>
+            </tr>
+            <tr>
+              <td>Interactive editing <span class="tooltip" title="Edit, patch, delete resources">ⓘ</span></td>
+              <td class="col-kubechart"><span class="cross">✗</span></td>
+              <td><span class="check">✓</span></td>
+              <td><span class="check">✓</span></td>
+              <td><span class="check">✓</span></td>
+            </tr>
+            <tr>
+              <td>Resource usage</td>
+              <td class="col-kubechart"><span class="tag minimal">Minimal</span></td>
+              <td><span class="tag medium">Medium</span></td>
+              <td><span class="tag heavy">Heavy</span></td>
+              <td><span class="tag medium">Medium</span></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <p class="comparison-note">
+        <strong>TL;DR:</strong> Kubechart = quick view/debug with zero setup. Use k9s or Lens when you need full cluster management.
+      </p>
+    </div>
+  </section>
+
+  <!-- Use Cases -->
+  <section class="usecases" id="usecases">
+    <div class="container">
+      <h2 class="section-title">Perfect For</h2>
+      <div class="usecases-grid">
+        <div class="usecase-card">
+          <div class="usecase-icon">🔧</div>
+          <h3>Production Debugging</h3>
+          <p>SSH into a node, run <code>npx kubechart</code>, and immediately see cluster health. No setup, no port-forwarding.</p>
+        </div>
+        <div class="usecase-card">
+          <div class="usecase-icon">📊</div>
+          <h3>Status Sharing</h3>
+          <p>Copy-paste the ASCII tree into Slack, tickets, or runbooks. Everyone sees the same cluster state instantly.</p>
+        </div>
+        <div class="usecase-card">
+          <div class="usecase-icon">📋</div>
+          <h3>Documentation</h3>
+          <p>Export YAML/JSON snapshots for audit trails, disaster recovery docs, or cluster state baselines.</p>
+        </div>
+        <div class="usecase-card">
+          <div class="usecase-icon">🔒</div>
+          <h3>Air-gapped Networks</h3>
+          <p>No external services needed. Works entirely offline with just kubeconfig and kubectl access.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- CTA -->
+  <section class="cta">
+    <div class="container">
+      <div class="cta-content">
+        <h2>Ready to debug faster?</h2>
+        <p>No pods to deploy. No GUI to install. Just run and go.</p>
+        <div class="cta-install">
+          <code class="install-command large">npx kubechart</code>
+          <button class="copy-btn large" onclick="copyInstall()">Copy</button>
+        </div>
+        <div class="cta-links">
+          <a href="https://www.npmjs.com/package/kubechart" target="_blank" class="btn-primary">View on npm</a>
+          <a href="https://github.com/satoshiman/kubechart" target="_blank" class="btn-secondary">GitHub Repo</a>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Footer -->
+  <footer class="footer">
+    <div class="container">
+      <div class="footer-inner">
+        <div class="footer-brand">
+          <span class="logo-icon">◆</span>
+          <span class="logo-text">kubechart</span>
+        </div>
+        <div class="footer-links">
+          <a href="https://www.npmjs.com/package/kubechart" target="_blank">npm</a>
+          <a href="https://github.com/satoshiman/kubechart" target="_blank">GitHub</a>
+          <a href="https://github.com/satoshiman/kubechart/blob/main/LICENSE" target="_blank">MIT License</a>
+        </div>
+      </div>
+      <p class="footer-copy">Open source project by @satoshiman · Released under MIT License</p>
+    </div>
+  </footer>
+
+  <script src="js/main.js"></script>
+</body>
+</html>
