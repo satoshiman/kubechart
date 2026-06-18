@@ -31,7 +31,7 @@ program
   .option('-l, --selector <sel>', 'Label selector (e.g. app=api,env=prod)')
   .option('--no-color', 'Disable colored output')
   .option('--once', 'Print chart once and exit (default: watch mode)')
-  .option('--interval <seconds>', 'Watch refresh interval (default: 5)', '5')
+  .option('--interval <seconds>', 'Watch refresh interval (default: 1)', '1')
   .option('--output <format>', 'Output format: json | yaml (requires --out-file)')
   .option('--out-file <path>', 'File path to write output (requires --output)')
   // v2 new flags
